@@ -1,5 +1,5 @@
 # Dockerfile для автоматической выгрузки цен на сервер 1C-Битрикс
-FROM golang:1.23-alpine
+FROM golang:1.24-alpine
 
 # Установка необходимых пакетов
 RUN apk add --no-cache \
