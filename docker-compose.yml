@@ -1,24 +1,36 @@
+# Docker Compose для Timeweb Cloud Apps
+# ВАЖНО: Timeweb НЕ поддерживает volumes и локальные контейнеры БД!
+# Используйте управляемую PostgreSQL БД от Timeweb
+
+version: '3.8'
+
 services:
   # Main API service
   api:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: etalon-api
+      dockerfile: Dockerfile.production
     command: ./api
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "8080:8080"
     environment:
-      - DB_DSN=${DATABASE_DSN}
+      - DATABASE_DSN=${DATABASE_DSN}
       - FOURTOCHKI_WSDL_URL=${FOURTOCHKI_WSDL_URL}
       - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
       - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
+      - FOURTOCHKI_BATCH_SIZE=${FOURTOCHKI_BATCH_SIZE:-50}
+      - FOURTOCHKI_TIMEOUT=${FOURTOCHKI_TIMEOUT:-60s}
+      - FOURTOCHKI_RETRY_COUNT=${FOURTOCHKI_RETRY_COUNT:-3}
+      - FOURTOCHKI_RETRY_DELAY=${FOURTOCHKI_RETRY_DELAY:-5s}
+      - EMAIL_ENABLED=${EMAIL_ENABLED:-true}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
+      - EMAIL_USERNAME=${EMAIL_USERNAME}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_NOTIFICATION_TO=${EMAIL_NOTIFICATION_TO}
       - TZ=Europe/Moscow
     restart: unless-stopped
-    depends_on:
-      - postgres
-    networks:
-      - etalon-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
@@ -26,101 +38,54 @@ services:
       retries: 3
       start_period: 40s
 
-  # Nomenclature scheduler (daily at 2:00 AM)
+  # Nomenclature scheduler (daily at 2:00 AM MSK)
   nomenclature-scheduler:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: etalon-nomenclature-scheduler
-    command: ./nomenclature-scheduler
+      dockerfile: Dockerfile.nomenclature-scheduler
     environment:
-      - DB_DSN=${DATABASE_DSN}
+      - DATABASE_DSN=${DATABASE_DSN}
       - FOURTOCHKI_WSDL_URL=${FOURTOCHKI_WSDL_URL}
       - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
       - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
+      - EMAIL_ENABLED=${EMAIL_ENABLED:-true}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
+      - EMAIL_USERNAME=${EMAIL_USERNAME}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_NOTIFICATION_TO=${EMAIL_NOTIFICATION_TO}
       - TZ=Europe/Moscow
     restart: unless-stopped
-    depends_on:
-      - postgres
-    networks:
-      - etalon-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
-  # Prices scheduler (configurable via cron)
+  # Prices scheduler (every 3 hours)
   prices-scheduler:
     build:
       context: .
       dockerfile: Dockerfile.prices-scheduler
-    container_name: etalon-prices-scheduler
     environment:
       - DATABASE_DSN=${DATABASE_DSN}
       - FOURTOCHKI_BASE_URL=${FOURTOCHKI_BASE_URL}
       - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
       - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
       - PRICES_CRON_SCHEDULE=${PRICES_CRON_SCHEDULE:-0 */3 * * *}
+      - EMAIL_ENABLED=${EMAIL_ENABLED:-true}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
+      - EMAIL_USERNAME=${EMAIL_USERNAME}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_NOTIFICATION_TO=${EMAIL_NOTIFICATION_TO}
       - TZ=Europe/Moscow
     restart: unless-stopped
-    depends_on:
-      - postgres
-    networks:
-      - etalon-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
-  # Prices upload to 1C-Bitrix server (daily at 10:00 Irkutsk time)
+  # Prices upload to 1C-Bitrix (daily at 10:00 IRKT)
   prices-upload:
     build:
       context: .
       dockerfile: Dockerfile.prices-upload
-    container_name: etalon-prices-upload
     environment:
-      - DB_DSN=${DATABASE_DSN}
+      - DATABASE_DSN=${DATABASE_DSN}
       - WORK_DIR=/app
       - TZ=Asia/Irkutsk
     restart: unless-stopped
-    depends_on:
-      - postgres
-    networks:
-      - etalon-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # PostgreSQL database (optional - use only if not using external DB)
-  postgres:
-    image: postgres:16-alpine
-    container_name: etalon-postgres
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-etalon_price}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - TZ=Europe/Moscow
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    restart: unless-stopped
-    networks:
-      - etalon-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-networks:
-  etalon-network:
-    driver: bridge
-
-volumes:
-  postgres-data:
