@@ -1,0 +1,61 @@
+# Production Dockerfile for Timeweb Cloud
+# Оптимизированный для деплоя только API сервера
+
+# Builder stage
+FROM golang:1.23-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /build
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build only API binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o /app/api \
+    ./cmd/app
+
+# Runtime stage - minimal image
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk --no-cache add ca-certificates tzdata wget
+
+# Create non-root user
+RUN addgroup -g 1000 app && \
+    adduser -D -u 1000 -G app app
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/api .
+
+# Copy migrations (needed for potential future use)
+COPY migrations ./migrations
+
+# Set ownership
+RUN chown -R app:app /app
+
+# Set timezone to Moscow
+ENV TZ=Europe/Moscow
+
+# Use non-root user
+USER app
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1
+
+# Run the API
+CMD ["./api"]

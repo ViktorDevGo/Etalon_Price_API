@@ -19,7 +19,6 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/api ./cmd/app
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-nomenclature ./cmd/sync-nomenclature
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-prices ./cmd/sync-prices
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-brinex ./cmd/sync-brinex
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/nomenclature-scheduler ./cmd/nomenclature-scheduler
 
 # Runtime stage
@@ -33,7 +32,6 @@ WORKDIR /app
 COPY --from=builder /app/api .
 COPY --from=builder /app/sync-nomenclature .
 COPY --from=builder /app/sync-prices .
-COPY --from=builder /app/sync-brinex .
 COPY --from=builder /app/nomenclature-scheduler .
 
 # Copy migrations

@@ -1,5 +1,7 @@
 # Деплой в Timeweb Cloud
 
+⚠️ **ВАЖНО:** Timeweb Cloud использует Docker для деплоя, НЕ docker-compose!
+
 ## 📋 Переменные окружения
 
 ### Формат для копирования в Timeweb Cloud:
@@ -8,7 +10,7 @@
 APP_ENV=production
 HTTP_PORT=8080
 LOG_LEVEL=info
-DB_DSN=postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require
+DATABASE_DSN=postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require
 FOURTOCHKI_WSDL_URL=http://api-b2b.4tochki.ru/WCF/ClientService.svc?wsdl
 FOURTOCHKI_LOGIN=sa69263
 FOURTOCHKI_PASSWORD=jkHP4Nj3)z
@@ -17,7 +19,6 @@ FOURTOCHKI_TIMEOUT=60s
 FOURTOCHKI_RETRY_COUNT=3
 FOURTOCHKI_RETRY_DELAY=5s
 FOURTOCHKI_BATCH_DELAY=2s
-PRICES_CRON_SCHEDULE=0 */3 * * *
 EMAIL_ENABLED=true
 EMAIL_SMTP_HOST=mail.hosting.reg.ru
 EMAIL_SMTP_PORT=587
@@ -36,7 +37,7 @@ TZ=Europe/Moscow
 # Инициализация git (если еще не сделано)
 git init
 git add .
-git commit -m "Initial commit for Timeweb Cloud deployment"
+git commit -m "Add production Dockerfile for Timeweb Cloud"
 
 # Добавление удаленного репозитория
 git remote add origin <your-git-repo-url>
@@ -45,41 +46,43 @@ git push -u origin master
 
 ### 2. Создание приложения в Timeweb Cloud
 
-1. Войдите в панель Timeweb Cloud
-2. Перейдите в раздел "Cloud Apps" или "Приложения"
-3. Нажмите "Создать приложение"
+1. Войдите в панель Timeweb Cloud: https://timeweb.cloud/
+2. Перейдите в раздел **"Серверы и хостинг"** → **"Cloud Apps"**
+3. Нажмите **"Создать приложение"**
 4. Выберите:
-   - **Фреймворк**: Go
-   - **Версия Go**: 1.23 или новее
-   - **Репозиторий**: подключите ваш Git репозиторий
+   - **Способ деплоя**: Docker
+   - **Репозиторий**: подключите ваш Git репозиторий (GitHub/GitLab)
+   - **Ветка**: master (или main)
 
-### 3. Настройка сборки
+### 3. Настройка Docker деплоя
 
 В настройках приложения укажите:
 
-**Build Command:**
-```bash
-go mod download && go build -o main cmd/api/main.go
+**Dockerfile:**
+```
+Dockerfile.production
 ```
 
-**Start Command:**
-```bash
-./main
-```
-
-**Port:**
+**Port (внутренний порт приложения):**
 ```
 8080
 ```
 
+**Публичный порт** (будет назначен автоматически Timeweb)
+
 ### 4. Добавление переменных окружения
 
-В разделе "Environment Variables" добавьте все переменные из списка выше.
+В разделе **"Переменные окружения"** (Environment Variables) добавьте все переменные из списка выше.
 
-**Важно:** Копируйте каждую переменную отдельно в формате:
+**Важно:**
+- Копируйте каждую переменную отдельно
+- НЕ используйте символ `=` в имени переменной
+- Формат: `Имя → Значение`
+
+Пример:
 ```
-Имя: APP_ENV
-Значение: production
+Имя: DATABASE_DSN
+Значение: postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require
 ```
 
 ### 5. Настройка базы данных
@@ -90,69 +93,74 @@ go mod download && go build -o main cmd/api/main.go
 - **Database:** default_db
 - **User:** gen_user
 - **Password:** Poison-79
+- **SSL Mode:** require (обязательно!)
 
-Переменная `DB_DSN` уже содержит правильную строку подключения.
+⚠️ **ВАЖНО:** Используйте переменную `DATABASE_DSN` (не `DB_DSN`!)
 
 ### 6. Применение миграций
 
-После первого деплоя выполните миграции вручную:
+После первого деплоя выполните миграции **локально** через psql:
 
 ```bash
-# Подключитесь к контейнеру приложения через SSH
-# Или используйте локальный psql
+# Из вашей локальной машины
+cd /Users/viktor/Pro_Koleso/Etalon_Price_API
 
-psql "postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require" -f migrations/001_initial_schema.up.sql
-
-# Или все миграции по порядку
+# Выполните все миграции по порядку
 for file in migrations/*.up.sql; do
+    echo "Applying: $file"
     psql "postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require" -f "$file"
 done
 ```
 
-### 7. Настройка планировщиков (Cron Jobs)
+Или вручную через DBeaver/pgAdmin подключитесь к БД и выполните миграции.
 
-#### Nomenclature Scheduler (ежедневно в 2:00 AM)
+### 7. Настройка планировщиков (отдельные приложения)
 
-Создайте отдельное приложение или используйте Timeweb Cron:
+⚠️ **ВАЖНО:** Каждый планировщик = отдельное Cloud App на Timeweb!
 
-**Команда:**
+#### 7.1. Nomenclature Scheduler (ежедневная синхронизация номенклатуры)
+
+Создайте **второе приложение** на Timeweb:
+
+1. Название: `etalon-nomenclature-scheduler`
+2. Dockerfile: `Dockerfile.production` (тот же)
+3. Command override: `./nomenclature-scheduler`
+4. Переменные окружения: те же самые
+5. Port: не требуется (фоновый процесс)
+
+**Альтернатива:** Используйте Timeweb Cron Jobs (если доступно в вашем плане):
 ```bash
-go run cmd/nomenclature-scheduler/main.go
+Команда: curl -X POST https://ваш-домен.com/api/sync/nomenclature
+Расписание: 0 2 * * *
 ```
 
-**Расписание:**
-```
-0 2 * * *
-```
+#### 7.2. Prices Scheduler (синхронизация цен каждые 3 часа)
 
-#### Prices Scheduler (каждые 3 часа)
+Создайте **третье приложение** на Timeweb:
 
-**Команда:**
-```bash
-go run cmd/sync-prices/main.go -type=all
-```
+1. Название: `etalon-prices-scheduler`
+2. Dockerfile: `Dockerfile.prices-scheduler`
+3. Переменные:
+   - `PRICES_CRON_SCHEDULE=0 */3 * * *`
+   - Все остальные как в основном приложении
+4. Port: не требуется
 
-**Расписание:**
-```
-0 */3 * * *
-```
+#### 7.3. Prices Upload (выгрузка на 1C-Битрикс ежедневно в 10:00 Иркутск)
 
-#### Prices Upload (ежедневно в 10:00 Иркутск)
+Создайте **четвертое приложение** на Timeweb:
 
-**Команда:**
-```bash
-/app/scripts/upload_prices_to_server.sh
-```
+1. Название: `etalon-prices-upload`
+2. Dockerfile: `Dockerfile.prices-upload`
+3. Переменные:
+   - `TZ=Asia/Irkutsk`
+   - `DATABASE_DSN=...` (как в основном)
+4. Port: не требуется
 
-**Расписание:**
-```
-0 10 * * *
-```
-
-**Timezone:**
-```
-Asia/Irkutsk
-```
+**Итого:** 4 приложения на Timeweb:
+- ✅ `etalon-api` - основное API (порт 8080)
+- ✅ `etalon-nomenclature-scheduler` - синхронизация номенклатуры (2:00 MSK)
+- ✅ `etalon-prices-scheduler` - синхронизация цен (каждые 3 часа)
+- ✅ `etalon-prices-upload` - выгрузка на Битрикс (10:00 IRKT)
 
 ### 8. Настройка логирования
 
@@ -179,36 +187,79 @@ Timeout: 10s
 
 ## 🔧 Troubleshooting
 
+### Проблема: "Error: Docker compose file not found"
+
+**Причина:** Timeweb ищет docker-compose.yml вместо Dockerfile
+
+**Решение:**
+1. В настройках приложения выберите **"Docker"**, НЕ "Docker Compose"
+2. Укажите `Dockerfile.production` в поле "Dockerfile path"
+
 ### Проблема: Приложение не запускается
 
-**Проверка 1: Логи**
-```bash
-# В панели Timeweb Cloud → Logs
-# Или через CLI
-timeweb-cloud logs <app-id>
+**Проверка 1: Логи в Timeweb**
+```
+Панель Timeweb Cloud → Ваше приложение → Логи
 ```
 
+Смотрите на ошибки при запуске:
+- `connection refused` → проблема с БД
+- `bind: address already in use` → порт занят
+- `no such file` → не хватает файлов в образе
+
 **Проверка 2: Переменные окружения**
-Убедитесь, что все переменные добавлены правильно.
+Убедитесь, что:
+- ✅ `DATABASE_DSN` (НЕ `DB_DSN`!)
+- ✅ Все пароли без спецсимволов в имени переменной
+- ✅ Нет лишних пробелов в начале/конце значений
 
 **Проверка 3: База данных**
 ```bash
-# Проверьте подключение
+# Локально проверьте подключение
 psql "postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require" -c "SELECT 1;"
 ```
 
-### Проблема: API не отвечает
+### Проблема: API не отвечает (502 Bad Gateway)
 
-**Проверка порта:**
-- Убедитесь, что `HTTP_PORT=8080` установлен
-- Проверьте, что приложение слушает на `0.0.0.0:8080`, а не на `localhost:8080`
+**Возможные причины:**
+
+1. **Приложение не слушает на правильном порту**
+   - Проверьте: `HTTP_PORT=8080` в переменных
+   - Проверьте: в Dockerfile.production порт 8080 открыт
+
+2. **Health check падает**
+   - Добавьте эндпоинт `/health` в API
+   - Или отключите health check в Timeweb
+
+3. **Приложение крашится при старте**
+   - Смотрите логи в панели Timeweb
+   - Проверьте подключение к БД
+
+### Проблема: "Cannot connect to database"
+
+**Проверьте:**
+```bash
+# 1. Правильная переменная?
+echo $DATABASE_DSN
+
+# 2. БД доступна?
+psql "postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require" -c "\dt"
+
+# 3. Миграции применены?
+psql "postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require" -c "SELECT * FROM schema_migrations;"
+```
 
 ### Проблема: Email не отправляются
 
 **Проверка SMTP:**
 ```bash
-# Проверьте настройки email
+# Проверьте доступность SMTP сервера
 telnet mail.hosting.reg.ru 587
+
+# Проверьте переменные
+echo $EMAIL_SMTP_HOST
+echo $EMAIL_SMTP_PORT
+echo $EMAIL_USERNAME
 ```
 
 ## 📊 Мониторинг
@@ -238,16 +289,56 @@ telnet mail.hosting.reg.ru 587
 
 ## 📝 Checklist деплоя
 
+### Подготовка
+- [ ] Dockerfile.production создан
+- [ ] Git репозиторий подключен к Timeweb
+- [ ] Последний код залит в master/main
+
+### Приложение 1: API (etalon-api)
+- [ ] Создано на Timeweb Cloud
+- [ ] Способ деплоя: Docker
+- [ ] Dockerfile: `Dockerfile.production`
+- [ ] Port: 8080
+- [ ] Переменные окружения добавлены (DATABASE_DSN!)
+- [ ] Приложение успешно задеплоено
+- [ ] Health check работает: `https://ваш-домен.com/health`
+- [ ] Логи без ошибок
+
+### База данных
+- [ ] Миграции применены локально
+- [ ] Таблицы созданы (проверить через psql)
+- [ ] Тестовое подключение работает
+
+### Приложение 2: Nomenclature Scheduler
+- [ ] Создано на Timeweb
+- [ ] Dockerfile: `Dockerfile.production`
+- [ ] Command override: `./nomenclature-scheduler`
 - [ ] Переменные окружения добавлены
-- [ ] Build и Start команды настроены
-- [ ] Порт 8080 открыт
-- [ ] Миграции применены
-- [ ] Планировщики настроены
-- [ ] Health check работает
-- [ ] Логи проверены
-- [ ] Email уведомления работают
+- [ ] Запускается без ошибок (проверить логи)
+
+### Приложение 3: Prices Scheduler
+- [ ] Создано на Timeweb
+- [ ] Dockerfile: `Dockerfile.prices-scheduler`
+- [ ] Переменная: `PRICES_CRON_SCHEDULE=0 */3 * * *`
+- [ ] Запускается без ошибок
+
+### Приложение 4: Prices Upload
+- [ ] Создано на Timeweb
+- [ ] Dockerfile: `Dockerfile.prices-upload`
+- [ ] Переменная: `TZ=Asia/Irkutsk`
+- [ ] Скрипт `/app/upload_prices.sh` работает
+
+### Тестирование
+- [ ] API отвечает на `/health`
+- [ ] Email уведомления приходят
 - [ ] Синхронизация с 4tochki работает
 - [ ] Выгрузка на 1C-Битрикс работает
+- [ ] Cron jobs запускаются по расписанию
+
+### Мониторинг
+- [ ] Настроены алерты на ошибки
+- [ ] Проверяются логи ежедневно
+- [ ] CPU/Memory в пределах нормы
 
 ## 🔗 Полезные ссылки
 

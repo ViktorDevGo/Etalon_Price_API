@@ -12,7 +12,6 @@ COPY . .
 
 # Build sync-prices binary
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-prices ./cmd/sync-prices
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-brinex ./cmd/sync-brinex
 
 # Runtime stage with crond
 FROM alpine:latest
@@ -23,7 +22,6 @@ WORKDIR /app
 
 # Copy binaries
 COPY --from=builder /app/sync-prices .
-COPY --from=builder /app/sync-brinex .
 
 # Copy migrations
 COPY --from=builder /build/migrations ./migrations
@@ -33,9 +31,7 @@ RUN echo '#!/bin/sh' > /app/run-sync.sh && \
     echo 'cd /app' >> /app/run-sync.sh && \
     echo 'echo "$(date) - Starting prices sync (Fourtochki)..."' >> /app/run-sync.sh && \
     echo './sync-prices -type=all' >> /app/run-sync.sh && \
-    echo 'echo "$(date) - Starting prices sync (Brinex)..."' >> /app/run-sync.sh && \
-    echo './sync-brinex -type=all -source=nomenclature' >> /app/run-sync.sh && \
-    echo 'echo "$(date) - Sync completed"' >> /app/run-sync.sh && \
+    echo 'echo "$(date) - Prices sync completed"' >> /app/run-sync.sh && \
     chmod +x /app/run-sync.sh
 
 # Create cron setup script

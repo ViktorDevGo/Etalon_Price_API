@@ -1,0 +1,38 @@
+# Nomenclature scheduler - runs daily at 2:00 AM Moscow time
+FROM golang:1.23-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# Build nomenclature-scheduler binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o /app/nomenclature-scheduler \
+    ./cmd/nomenclature-scheduler
+
+# Runtime stage with cron
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy binary
+COPY --from=builder /app/nomenclature-scheduler .
+
+# Copy migrations
+COPY migrations ./migrations
+
+# Set timezone to Moscow
+ENV TZ=Europe/Moscow
+
+# The binary itself contains the scheduler logic
+# It will run continuously and execute sync at 2:00 AM
+CMD ["./nomenclature-scheduler"]
