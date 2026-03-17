@@ -2,21 +2,29 @@
 
 ## 🔴 Проблема
 
-Вы пытались задеплоить приложение на Timeweb Cloud, но получали ошибку:
+При деплое на Timeweb Cloud появлялась ошибка:
 ```
-Причина: В логах деплоя отсутствует информация об ошибке,
-что может указывать на проблему с конфигурацией docker-compose
-или отсутствием необходимых файлов в проекте.
+ERROR | Sanitizer check error volumes is not allowed in docker-compose.yml
+```
+
+И предупреждения о пустых переменных:
+```
+WARNING | The "DATABASE_DSN" variable is not set. Defaulting to a blank string.
+WARNING | The "FOURTOCHKI_WSDL_URL" variable is not set. Defaulting to a blank string.
 ```
 
 ## 🔍 Причина
 
-**Timeweb Cloud НЕ поддерживает docker-compose для деплоя!**
+**Проблема #1: Volumes запрещены**
+- Timeweb Cloud НЕ поддерживает `volumes` в docker-compose.yml
+- Ваш `docker-compose.yml` содержал volumes для PostgreSQL
 
-Ваш `docker-compose.yml` содержал:
-- ❌ Локальный сервис PostgreSQL (не нужен - Timeweb предоставляет управляемую БД)
-- ❌ Множественные сервисы (Timeweb деплоит ОДИН Dockerfile за раз)
-- ❌ Зависимости `depends_on: postgres` (не работают без docker-compose)
+**Проблема #2: Локальный PostgreSQL не нужен**
+- Timeweb предоставляет управляемую БД
+- Локальный контейнер postgres из docker-compose не нужен
+
+**Проблема #3: Переменные окружения**
+- Вы выбрали "Docker Compose" в настройках, но не указали переменные окружения
 
 ## ✅ Что было исправлено
 
@@ -27,26 +35,59 @@
 - ✅ `Dockerfile.prices-scheduler` - планировщик цен (обновлен, убран Brinex)
 - ✅ `Dockerfile.prices-upload` - выгрузка на 1C-Битрикс (без изменений)
 
-### 2. Обновлена документация:
+### 2. Создан docker-compose БЕЗ volumes (опционально):
+
+- ✅ `docker-compose.timeweb.yml` - БЕЗ volumes, БЕЗ postgres контейнера
+- ✅ Использует управляемую БД Timeweb
+- ✅ Переменная `DATABASE_DSN` вместо `DB_DSN`
+
+### 3. Обновлена документация:
 
 - ✅ `docs/TIMEWEB_DEPLOYMENT.md` - полная инструкция с troubleshooting
 - ✅ `TIMEWEB_QUICK_START.md` - краткая инструкция для быстрого старта
+- ✅ `РЕШЕНИЕ_ПРОБЛЕМЫ_TIMEWEB.md` - решение ошибки volumes
 
-### 3. Очищены устаревшие зависимости:
+### 4. Очищены устаревшие зависимости:
 
 - ✅ Удалены ссылки на `sync-brinex` (удален в миграции 016)
 - ✅ Обновлены все Dockerfile
 
 ## 🚀 Что делать дальше
 
-### Вариант 1: Быстрый старт (рекомендуется)
+### ⭐ Вариант 1: Docker (рекомендуется)
 
-Следуйте инструкции в файле:
-```
-TIMEWEB_QUICK_START.md
-```
+**Деплойте 4 отдельных приложения**, используя отдельные Dockerfile:
 
-### Вариант 2: Подробная инструкция
+1. Следуйте инструкции: `TIMEWEB_QUICK_START.md`
+2. В настройках Timeweb выбирайте **"Docker"** (НЕ "Docker Compose")
+3. Для каждого приложения указывайте свой Dockerfile:
+   - `etalon-api` → `Dockerfile.production`
+   - `etalon-nomenclature-scheduler` → `Dockerfile.nomenclature-scheduler`
+   - `etalon-prices-scheduler` → `Dockerfile.prices-scheduler`
+   - `etalon-prices-upload` → `Dockerfile.prices-upload`
+
+**Плюсы:**
+- ✅ Каждый сервис деплоится независимо
+- ✅ Легче управлять и масштабировать
+- ✅ Рекомендуется Timeweb
+
+---
+
+### Вариант 2: Docker Compose (альтернатива)
+
+**Деплойте через docker-compose БЕЗ volumes:**
+
+1. В настройках Timeweb выберите **"Docker Compose"**
+2. Укажите файл: `docker-compose.timeweb.yml`
+3. Добавьте ВСЕ переменные окружения в настройках Timeweb
+
+**Минусы:**
+- ❌ Все сервисы в одном приложении (сложнее управлять)
+- ❌ Нужно вручную добавлять переменные в настройках
+
+---
+
+### Вариант 3: Подробная документация
 
 Смотрите полную документацию:
 ```
@@ -108,10 +149,27 @@ docs/TIMEWEB_DEPLOYMENT.md
 docs/TIMEWEB_DEPLOYMENT.md
 ```
 
-Типичные проблемы:
-- ❌ "Docker compose file not found" → Выберите "Docker", а не "Docker Compose"
-- ❌ "Cannot connect to database" → Проверьте имя переменной `DATABASE_DSN`
-- ❌ "502 Bad Gateway" → Проверьте логи в панели Timeweb
+### Типичные проблемы:
+
+**1. `volumes is not allowed in docker-compose.yml`**
+- **Решение А:** Используйте `docker-compose.timeweb.yml` вместо `docker-compose.yml`
+- **Решение Б:** Выберите "Docker" вместо "Docker Compose" (рекомендуется)
+
+**2. `The "DATABASE_DSN" variable is not set`**
+- **Причина:** Переменные окружения не добавлены в настройках приложения
+- **Решение:** Добавьте все переменные из `.env` в панели Timeweb
+
+**3. `Docker compose file not found`**
+- **Решение:** Выберите "Docker", а не "Docker Compose"
+
+**4. `Cannot connect to database`**
+- **Проверьте:** Переменная называется `DATABASE_DSN`, НЕ `DB_DSN`
+- **Проверьте:** В строке есть `?sslmode=require`
+
+**5. `502 Bad Gateway`**
+- **Проверьте:** Логи приложения в панели Timeweb
+- **Проверьте:** `HTTP_PORT=8080` установлен
+- **Проверьте:** Health check endpoint `/health` работает
 
 ## 🎉 Результат
 
