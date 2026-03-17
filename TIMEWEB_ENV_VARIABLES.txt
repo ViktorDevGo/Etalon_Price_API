@@ -1,0 +1,65 @@
+# ============================================================
+# ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ ДЛЯ TIMEWEB CLOUD
+# Etalon Price API - Production
+# ============================================================
+
+# Application Settings
+APP_ENV=production
+HTTP_PORT=8080
+LOG_LEVEL=info
+
+# Database Connection
+DB_DSN=postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require
+
+# 4tochki API Credentials
+FOURTOCHKI_WSDL_URL=http://api-b2b.4tochki.ru/WCF/ClientService.svc?wsdl
+FOURTOCHKI_LOGIN=sa69263
+FOURTOCHKI_PASSWORD=jkHP4Nj3)z
+
+# 4tochki API Settings
+FOURTOCHKI_BATCH_SIZE=50
+FOURTOCHKI_TIMEOUT=60s
+FOURTOCHKI_RETRY_COUNT=3
+FOURTOCHKI_RETRY_DELAY=5s
+FOURTOCHKI_BATCH_DELAY=2s
+
+# Prices Sync Schedule
+PRICES_CRON_SCHEDULE=0 */3 * * *
+
+# Email Notifications
+EMAIL_ENABLED=true
+EMAIL_SMTP_HOST=mail.hosting.reg.ru
+EMAIL_SMTP_PORT=587
+EMAIL_USERNAME=admin@etalon-shina.ru
+EMAIL_PASSWORD=S69Y1ypojVLCZHO8
+EMAIL_FROM=admin@etalon-shina.ru
+EMAIL_NOTIFICATION_TO=v.boyarkin@etalon-shina.ru
+
+# Timezone
+TZ=Europe/Moscow
+
+# ============================================================
+# ФОРМАТ ДЛЯ КОПИРОВАНИЯ (без комментариев)
+# ============================================================
+
+APP_ENV=production
+HTTP_PORT=8080
+LOG_LEVEL=info
+DB_DSN=postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require
+FOURTOCHKI_WSDL_URL=http://api-b2b.4tochki.ru/WCF/ClientService.svc?wsdl
+FOURTOCHKI_LOGIN=sa69263
+FOURTOCHKI_PASSWORD=jkHP4Nj3)z
+FOURTOCHKI_BATCH_SIZE=50
+FOURTOCHKI_TIMEOUT=60s
+FOURTOCHKI_RETRY_COUNT=3
+FOURTOCHKI_RETRY_DELAY=5s
+FOURTOCHKI_BATCH_DELAY=2s
+PRICES_CRON_SCHEDULE=0 */3 * * *
+EMAIL_ENABLED=true
+EMAIL_SMTP_HOST=mail.hosting.reg.ru
+EMAIL_SMTP_PORT=587
+EMAIL_USERNAME=admin@etalon-shina.ru
+EMAIL_PASSWORD=S69Y1ypojVLCZHO8
+EMAIL_FROM=admin@etalon-shina.ru
+EMAIL_NOTIFICATION_TO=v.boyarkin@etalon-shina.ru
+TZ=Europe/Moscow

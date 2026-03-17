@@ -1,0 +1,51 @@
+# Prices scheduler with Alpine cron for flexible scheduling
+FROM golang:alpine AS builder
+
+RUN apk add --no-cache git
+
+WORKDIR /build
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# Build sync-prices binary
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-prices ./cmd/sync-prices
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-brinex ./cmd/sync-brinex
+
+# Runtime stage with crond
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata dcron
+
+WORKDIR /app
+
+# Copy binaries
+COPY --from=builder /app/sync-prices .
+COPY --from=builder /app/sync-brinex .
+
+# Copy migrations
+COPY --from=builder /build/migrations ./migrations
+
+# Create cron script
+RUN echo '#!/bin/sh' > /app/run-sync.sh && \
+    echo 'cd /app' >> /app/run-sync.sh && \
+    echo 'echo "$(date) - Starting prices sync (Fourtochki)..."' >> /app/run-sync.sh && \
+    echo './sync-prices -type=all' >> /app/run-sync.sh && \
+    echo 'echo "$(date) - Starting prices sync (Brinex)..."' >> /app/run-sync.sh && \
+    echo './sync-brinex -type=all -source=nomenclature' >> /app/run-sync.sh && \
+    echo 'echo "$(date) - Sync completed"' >> /app/run-sync.sh && \
+    chmod +x /app/run-sync.sh
+
+# Create cron setup script
+RUN echo '#!/bin/sh' > /app/setup-cron.sh && \
+    echo 'echo "$PRICES_CRON_SCHEDULE /app/run-sync.sh >> /var/log/cron.log 2>&1" > /etc/crontabs/root' >> /app/setup-cron.sh && \
+    echo 'echo "Cron schedule set to: $PRICES_CRON_SCHEDULE"' >> /app/setup-cron.sh && \
+    echo 'crond -f -l 2' >> /app/setup-cron.sh && \
+    chmod +x /app/setup-cron.sh
+
+ENV TZ=Europe/Moscow
+ENV PRICES_CRON_SCHEDULE="0 */3 * * *"
+
+CMD ["/app/setup-cron.sh"]

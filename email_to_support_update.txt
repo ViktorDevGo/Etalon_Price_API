@@ -1,0 +1,115 @@
+Тема: Успешная интеграция GetGoodsInfo, проблема с GetGoodsPriceRestByCode
+
+Здравствуйте!
+
+Благодарим за помощь в предыдущем обращении. Мы внесли изменения согласно вашим рекомендациям и хотим сообщить о прогрессе.
+
+
+✅ ЧТО ЗАРАБОТАЛО:
+
+1. Исправили структуру SOAP запроса - используем code_list вместо codes
+2. Протестировали с валидными кодами из вашей системы: 1027210 и 1026634
+3. Метод GetGoodsInfo РАБОТАЕТ ОТЛИЧНО - получаем полную информацию о товарах
+4. Заполнили адрес доставки в личном кабинете (ID адреса: 90651)
+
+
+❌ ПРОБЛЕМА ОСТАЛАСЬ С GetGoodsPriceRestByCode:
+
+Метод GetGoodsPriceRestByCode возвращает ошибку 50 для тех же самых кодов товаров,
+которые успешно работают в GetGoodsInfo.
+
+
+ТЕХНИЧЕСКИЕ ДЕТАЛИ:
+
+Запрос GetGoodsPriceRestByCode:
+```xml
+POST http://api-b2b.4tochki.ru/WCF/ClientService.svc?wsdl
+Content-Type: text/xml; charset=utf-8
+SOAPAction: Wcf.ClientService.Client.WebAPI.TS3/ClientService/GetGoodsPriceRestByCode
+
+<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetGoodsPriceRestByCode xmlns="Wcf.ClientService.Client.WebAPI.TS3">
+      <login>sa69263</login>
+      <password>jkHP4Nj3)z</password>
+      <code_list xmlns:arr="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+        <arr:string>1027210</arr:string>
+        <arr:string>1026634</arr:string>
+      </code_list>
+    </GetGoodsPriceRestByCode>
+  </s:Body>
+</s:Envelope>
+```
+
+Ответ:
+```xml
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetGoodsPriceRestByCodeResponse xmlns="Wcf.ClientService.Client.WebAPI.TS3">
+      <GetGoodsPriceRestByCodeResult
+          xmlns:a="http://schemas.datacontract.org/2004/07/TS3.Domain.Models.Client.ClientSoapService.SearchProductsAndPricesInfo"
+          xmlns:i="http://www.w3.org/2001/XMLSchema-instance">
+        <a:error xmlns:b="http://schemas.datacontract.org/2004/07/TS3.Domain.Models.Client.ClientSoapService">
+          <b:code>50</b:code>
+          <b:comment>Неизвестная ошибка. Обратитесь к администратору веб-сервиса.</b:comment>
+        </a:error>
+        <a:price_rest_list i:nil="true"/>
+      </GetGoodsPriceRestByCodeResult>
+    </GetGoodsPriceRestByCodeResponse>
+  </s:Body>
+</s:Envelope>
+```
+
+HTTP Status: 200 OK
+
+
+ВОПРОСЫ:
+
+1. Почему GetGoodsPriceRestByCode возвращает ошибку 50 для тех же кодов товаров,
+   которые успешно работают в GetGoodsInfo?
+
+2. Корректна ли структура нашего SOAP запроса для GetGoodsPriceRestByCode?
+   Используем ли правильное имя параметра code_list?
+
+3. Требуются ли дополнительные параметры для GetGoodsPriceRestByCode?
+
+4. Связана ли ошибка с недавно заполненным адресом доставки?
+   Нужно ли время для синхронизации изменений?
+
+5. Есть ли какие-то ограничения или специальные права доступа для метода
+   GetGoodsPriceRestByCode на нашей учетной записи (sa69263)?
+
+6. Можете ли вы предоставить точный пример успешного SOAP запроса
+   GetGoodsPriceRestByCode с тестовыми данными?
+
+
+ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ:
+
+Для сравнения - наш успешный запрос GetGoodsInfo:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetGoodsInfo xmlns="Wcf.ClientService.Client.WebAPI.TS3">
+      <login>sa69263</login>
+      <password>jkHP4Nj3)z</password>
+      <code_list xmlns:arr="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+        <arr:string>1027210</arr:string>
+        <arr:string>1026634</arr:string>
+      </code_list>
+    </GetGoodsInfo>
+  </s:Body>
+</s:Envelope>
+```
+
+Этот запрос работает отлично и возвращает полную информацию о двух шинах.
+
+
+Будем благодарны за помощь в решении проблемы с GetGoodsPriceRestByCode.
+
+С уважением,
+Виктор
+Учетная запись: sa69263
+Email: [ваш email]
+Телефон: [ваш телефон]

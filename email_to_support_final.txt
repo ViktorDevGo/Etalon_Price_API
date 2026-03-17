@@ -1,0 +1,150 @@
+Тема: Вопросы по методам API: GetFindTyre, GetFindDisk, GetGoodsPriceRestByCode
+
+Здравствуйте!
+
+Спасибо за предыдущую помощь. Мы успешно внедрили метод GetGoodsInfo и он работает отлично.
+
+Сейчас работаем над полной интеграцией и столкнулись с вопросами по трем методам API.
+
+
+✅ ЧТО УЖЕ РАБОТАЕТ:
+
+Метод GetGoodsInfo - полностью функционален:
+- Успешно получаем информацию о товарах по кодам
+- Данные корректно сохраняются в нашу базу данных
+- Протестировано на кодах: 1027210, 1026634
+
+
+❌ ПРОБЛЕМЫ С МЕТОДАМИ:
+
+1. GetFindTyre - возвращает ошибку 50
+2. GetFindDisk - возвращает ошибку 50
+3. GetGoodsPriceRestByCode - возвращает ошибку 50
+
+
+ПОНИМАНИЕ ПРОЦЕССА:
+
+Насколько мы понимаем, правильный процесс синхронизации должен быть таким:
+
+1. Вызвать GetFindTyre -> получить список всех кодов шин
+2. Вызвать GetFindDisk -> получить список всех кодов дисков
+3. Для полученных кодов вызвать GetGoodsInfo -> получить информацию о товарах
+4. Для полученных кодов вызвать GetGoodsPriceRestByCode -> получить цены и остатки
+
+Правильно ли мы понимаем процесс?
+
+
+ТЕХНИЧЕСКИЕ ДЕТАЛИ:
+
+Запрос GetFindTyre:
+```xml
+POST http://api-b2b.4tochki.ru/WCF/ClientService.svc?wsdl
+Content-Type: text/xml; charset=utf-8
+SOAPAction: Wcf.ClientService.Client.WebAPI.TS3/ClientService/GetFindTyre
+
+<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetFindTyre xmlns="Wcf.ClientService.Client.WebAPI.TS3">
+      <login>sa69263</login>
+      <password>jkHP4Nj3)z</password>
+    </GetFindTyre>
+  </s:Body>
+</s:Envelope>
+```
+
+Ответ:
+Ошибка 50 - "Неизвестная ошибка. Обратитесь к администратору веб-сервиса."
+
+
+Запрос GetFindDisk:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetFindDisk xmlns="Wcf.ClientService.Client.WebAPI.TS3">
+      <login>sa69263</login>
+      <password>jkHP4Nj3)z</password>
+    </GetFindDisk>
+  </s:Body>
+</s:Envelope>
+```
+
+Ответ:
+Ошибка 50 - "Неизвестная ошибка. Обратитесь к администратору веб-сервиса."
+
+
+Запрос GetGoodsPriceRestByCode (уже упоминали ранее):
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetGoodsPriceRestByCode xmlns="Wcf.ClientService.Client.WebAPI.TS3">
+      <login>sa69263</login>
+      <password>jkHP4Nj3)z</password>
+      <code_list xmlns:arr="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+        <arr:string>1027210</arr:string>
+        <arr:string>1026634</arr:string>
+      </code_list>
+    </GetGoodsPriceRestByCode>
+  </s:Body>
+</s:Envelope>
+```
+
+Ответ:
+Ошибка 50 - "Неизвестная ошибка. Обратитесь к администратору веб-сервиса."
+
+
+ВОПРОСЫ:
+
+1. Корректно ли мы понимаем процесс синхронизации через GetFindTyre/GetFindDisk?
+
+2. Требуются ли дополнительные параметры для методов GetFindTyre и GetFindDisk?
+   Например, фильтры по размерам, брендам, или другие параметры?
+
+3. Есть ли ограничения или специальные права доступа для этих методов
+   на нашей учетной записи (sa69263)?
+
+4. Связаны ли все три ошибки (GetFindTyre, GetFindDisk, GetGoodsPriceRestByCode)
+   с одной и той же причиной?
+
+5. Можете ли вы предоставить рабочие примеры SOAP запросов для всех трех методов:
+   - GetFindTyre
+   - GetFindDisk
+   - GetGoodsPriceRestByCode
+
+6. Возможно ли получить список всех доступных кодов товаров другим способом?
+   Например, через личный кабинет в виде файла?
+
+
+ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ:
+
+Адрес доставки заполнен полностью (ID: 90651).
+
+Для справки - успешный запрос GetGoodsInfo с которым у нас нет проблем:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
+  <s:Body>
+    <GetGoodsInfo xmlns="Wcf.ClientService.Client.WebAPI.TS3">
+      <login>sa69263</login>
+      <password>jkHP4Nj3)z</password>
+      <code_list xmlns:arr="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+        <arr:string>1027210</arr:string>
+        <arr:string>1026634</arr:string>
+      </code_list>
+    </GetGoodsInfo>
+  </s:Body>
+</s:Envelope>
+```
+
+Этот запрос работает безупречно и возвращает полную информацию о товарах.
+
+
+Будем очень благодарны за помощь в настройке полной синхронизации данных!
+
+С уважением,
+Виктор
+Учетная запись: sa69263
+Email: [ваш email]
+Телефон: [ваш телефон]

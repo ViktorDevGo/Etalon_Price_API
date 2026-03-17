@@ -1,0 +1,40 @@
+# Dockerfile для автоматической выгрузки цен на сервер 1C-Битрикс
+FROM golang:1.23-alpine
+
+# Установка необходимых пакетов
+RUN apk add --no-cache \
+    bash \
+    openssh-client \
+    sshpass \
+    tzdata
+
+# Установка timezone на Иркутск
+ENV TZ=Asia/Irkutsk
+RUN ln -sf /usr/share/zoneinfo/Asia/Irkutsk /etc/localtime
+
+# Рабочая директория
+WORKDIR /app
+
+# Копируем go.mod и go.sum
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Копируем весь код
+COPY . .
+
+# Копируем скрипт выгрузки
+COPY scripts/upload_prices_to_server.sh /app/upload_prices.sh
+RUN chmod +x /app/upload_prices.sh
+
+# Создаем cron job для запуска каждый день в 10:00 по Иркутску
+RUN echo "0 10 * * * /app/upload_prices.sh >> /var/log/cron.log 2>&1" > /etc/crontabs/root
+
+# Скрипт для запуска crond
+RUN echo '#!/bin/bash' > /app/start.sh && \
+    echo 'echo "Prices upload scheduler started (Asia/Irkutsk timezone)"' >> /app/start.sh && \
+    echo 'echo "Current time: $(date)"' >> /app/start.sh && \
+    echo 'echo "Next run: Every day at 10:00 Irkutsk time"' >> /app/start.sh && \
+    echo 'crond -f -l 2' >> /app/start.sh && \
+    chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]

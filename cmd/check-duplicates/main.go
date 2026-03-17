@@ -1,0 +1,136 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
+	"github.com/prokoleso/etalon-price-api/internal/config"
+)
+
+func main() {
+	_ = godotenv.Load()
+
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	pool, err := pgxpool.New(context.Background(), cfg.Database.DSN)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer pool.Close()
+
+	ctx := context.Background()
+
+	checkConstraints(ctx, pool)
+	fmt.Println("================================================================")
+	fmt.Println("Проверка дублей в таблицах номенклатуры")
+	checkConstraints(ctx, pool)
+	fmt.Println("================================================================")
+	fmt.Println()
+
+	checkTyres(ctx, pool)
+	fmt.Println()
+	checkRims(ctx, pool)
+
+	checkConstraints(ctx, pool)
+	fmt.Println("================================================================")
+}
+
+func checkTyres(ctx context.Context, pool *pgxpool.Pool) {
+	fmt.Println("ТАБЛИЦА: nomenclature_tyres")
+	fmt.Println("-----------------------------------------------------------------")
+	
+	var total, uniqueCAEs, duplicatesByCAE, fullDuplicates int
+	
+	pool.QueryRow(ctx, "SELECT COUNT(*) FROM nomenclature_tyres").Scan(&total)
+	pool.QueryRow(ctx, "SELECT COUNT(DISTINCT cae) FROM nomenclature_tyres").Scan(&uniqueCAEs)
+	pool.QueryRow(ctx, "SELECT COUNT(*) FROM (SELECT cae FROM nomenclature_tyres GROUP BY cae HAVING COUNT(*) > 1) AS d").Scan(&duplicatesByCAE)
+	
+	pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM (
+			SELECT COUNT(*) FROM nomenclature_tyres
+			GROUP BY cae, name, width, height, diameter, diameter_out,
+				load_index, speed_index, model, brand, season,
+				is_studded, tiretype, runflat, reinforced
+			HAVING COUNT(*) > 1
+		) AS fd
+	`).Scan(&fullDuplicates)
+	
+	fmt.Printf("📊 Всего записей: %d\n", total)
+	fmt.Printf("🔑 Уникальных CAE: %d\n", uniqueCAEs)
+	fmt.Printf("♻️  CAE с дублями (версиями): %d\n", duplicatesByCAE)
+	fmt.Printf("⚠️  Полных дублей (все поля): %d\n", fullDuplicates)
+}
+
+func checkRims(ctx context.Context, pool *pgxpool.Pool) {
+	fmt.Println("ТАБЛИЦА: nomenclature_rims")
+	fmt.Println("-----------------------------------------------------------------")
+	
+	var total, uniqueCAEs, duplicatesByCAE, fullDuplicates int
+	
+	pool.QueryRow(ctx, "SELECT COUNT(*) FROM nomenclature_rims").Scan(&total)
+	pool.QueryRow(ctx, "SELECT COUNT(DISTINCT cae) FROM nomenclature_rims").Scan(&uniqueCAEs)
+	pool.QueryRow(ctx, "SELECT COUNT(*) FROM (SELECT cae FROM nomenclature_rims GROUP BY cae HAVING COUNT(*) > 1) AS d").Scan(&duplicatesByCAE)
+	
+	pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM (
+			SELECT COUNT(*) FROM nomenclature_rims
+			GROUP BY cae, name, width, diameter, bolts_count,
+				bolts_spacing, bolts_spacing2, et, dia,
+				model, brand, color, rim_type
+			HAVING COUNT(*) > 1
+		) AS fd
+	`).Scan(&fullDuplicates)
+	
+	fmt.Printf("📊 Всего записей: %d\n", total)
+	fmt.Printf("🔑 Уникальных CAE: %d\n", uniqueCAEs)
+	fmt.Printf("♻️  CAE с дублями (версиями): %d\n", duplicatesByCAE)
+	fmt.Printf("⚠️  Полных дублей (все поля): %d\n", fullDuplicates)
+}
+
+func init() {
+	// Check constraints after main
+}
+
+func checkConstraints(ctx context.Context, pool *pgxpool.Pool) {
+	fmt.Println("\n🔐 UNIQUE Constraints на cae:")
+	fmt.Println("-----------------------------------------------------------------")
+	
+	rows, err := pool.Query(ctx, `
+		SELECT tc.table_name, tc.constraint_name, kcu.column_name
+		FROM information_schema.table_constraints tc
+		JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+		WHERE tc.table_name IN ('nomenclature_tyres', 'nomenclature_rims')
+		  AND tc.constraint_type = 'UNIQUE'
+		  AND kcu.column_name = 'cae'
+		ORDER BY tc.table_name
+	`)
+	
+	if err != nil {
+		fmt.Printf("Ошибка проверки: %v\n", err)
+		return
+	}
+	defer rows.Close()
+	
+	hasConstraints := false
+	for rows.Next() {
+		var table, constraint, column string
+		rows.Scan(&table, &constraint, &column)
+		fmt.Printf("  ⚠️  %s: %s (колонка: %s)\n", table, constraint, column)
+		hasConstraints = true
+	}
+	
+	if !hasConstraints {
+		fmt.Println("  ✅ UNIQUE constraints на cae отсутствуют")
+		fmt.Println("  ✅ Таблицы готовы к ведению истории изменений")
+	} else {
+		fmt.Println("\n  ⚠️  ВНИМАНИЕ: Найдены UNIQUE constraints!")
+		fmt.Println("  📋 Нужно применить миграцию 013:")
+		fmt.Println("     psql \"$DATABASE_DSN\" -f migrations/013_modify_nomenclature_for_history.up.sql")
+	}
+}

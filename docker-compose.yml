@@ -1,0 +1,126 @@
+services:
+  # Main API service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: etalon-api
+    command: ./api
+    ports:
+      - "${API_PORT:-8080}:8080"
+    environment:
+      - DB_DSN=${DATABASE_DSN}
+      - FOURTOCHKI_WSDL_URL=${FOURTOCHKI_WSDL_URL}
+      - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
+      - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
+      - TZ=Europe/Moscow
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - etalon-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nomenclature scheduler (daily at 2:00 AM)
+  nomenclature-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: etalon-nomenclature-scheduler
+    command: ./nomenclature-scheduler
+    environment:
+      - DB_DSN=${DATABASE_DSN}
+      - FOURTOCHKI_WSDL_URL=${FOURTOCHKI_WSDL_URL}
+      - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
+      - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
+      - TZ=Europe/Moscow
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - etalon-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Prices scheduler (configurable via cron)
+  prices-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.prices-scheduler
+    container_name: etalon-prices-scheduler
+    environment:
+      - DATABASE_DSN=${DATABASE_DSN}
+      - FOURTOCHKI_BASE_URL=${FOURTOCHKI_BASE_URL}
+      - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
+      - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
+      - PRICES_CRON_SCHEDULE=${PRICES_CRON_SCHEDULE:-0 */3 * * *}
+      - TZ=Europe/Moscow
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - etalon-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Prices upload to 1C-Bitrix server (daily at 10:00 Irkutsk time)
+  prices-upload:
+    build:
+      context: .
+      dockerfile: Dockerfile.prices-upload
+    container_name: etalon-prices-upload
+    environment:
+      - DB_DSN=${DATABASE_DSN}
+      - WORK_DIR=/app
+      - TZ=Asia/Irkutsk
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - etalon-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # PostgreSQL database (optional - use only if not using external DB)
+  postgres:
+    image: postgres:16-alpine
+    container_name: etalon-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-etalon_price}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=Europe/Moscow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    restart: unless-stopped
+    networks:
+      - etalon-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  etalon-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
