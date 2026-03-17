@@ -140,7 +140,8 @@
       "Bash(/tmp/check_rim.go:*)",
       "Bash(/tmp/split_csv.go:*)",
       "Bash(/tmp/verify_csv.go:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git mv:*)"
     ]
   }
 }
