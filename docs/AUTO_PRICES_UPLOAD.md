@@ -4,17 +4,28 @@
 
 Автоматическая ежедневная выгрузка файлов переоценки на сервер 1C-Битрикс в **10:00 по иркутскому времени (UTC+8)**.
 
-## Выгружаемые файлы
+## Выгружаемые файлы (в порядке генерации)
 
-1. **Переоценка_шины_YYYYMMDD.csv** - переоценка легковых шин
+### ВАЖНО: Порядок генерации файлов критичен!
+
+1️⃣ **Переоценка_МРЦ_YYYYMMDD.csv** - переоценка с МРЦ ценами (генерируется ПЕРВЫМ!)
+   - Источник: `tyres_prices_stock` + `nomenclature_tyres` + `mrc_etalon`
+   - Фильтр: `tiretype = 'Легковая'`
+   - Формат: 5 колонок (IE_XML_ID, IP_PROP171, QUANTITY, CV_PRICE_1, CV_CURRENCY_1)
+   - **Особенность:** НЕ обновляет `isimport` (файл для информации)
+   - **Цена:** CEIL(mrc) если есть в mrc_etalon.article, иначе CEIL(MIN(price) × 1.12)
+
+2️⃣ **Переоценка_шины_YYYYMMDD.csv** - переоценка легковых шин
    - Источник: `tyres_prices_stock` + `nomenclature_tyres`
    - Фильтр: `tiretype = 'Легковая'`
    - Формат: 5 колонок (IE_XML_ID, IP_PROP171, QUANTITY, CV_PRICE_1, CV_CURRENCY_1)
+   - **Особенность:** Обновляет `isimport = 1`
 
-2. **Переоценка_мотошины_YYYYMMDD.csv** - переоценка мотошин
+3️⃣ **Переоценка_мотошины_YYYYMMDD.csv** - переоценка мотошин
    - Источник: `tyres_prices_stock` + `nomenclature_tyres`
    - Фильтр: `tiretype = 'Мотошина'`
    - Формат: 5 колонок (IE_XML_ID, IP_PROP171, QUANTITY, CV_PRICE_1, CV_CURRENCY_1)
+   - **Особенность:** Обновляет `isimport = 1`
 
 ## Логика генерации
 
@@ -128,6 +139,9 @@ ls -lh /home/bitrix/www/upload/1c_catalog/Переоценка_*
 ### Генерация файлов вручную
 
 ```bash
+# МРЦ
+go run cmd/export-bitrix-prices-mrc/main.go -output-dir=/Users/viktor/Desktop
+
 # Легковые шины
 go run cmd/export-bitrix-prices/main.go -output-dir=/Users/viktor/Desktop
 
@@ -135,6 +149,8 @@ go run cmd/export-bitrix-prices/main.go -output-dir=/Users/viktor/Desktop
 go run cmd/export-bitrix-prices-moto/main.go -output-dir=/Users/viktor/Desktop
 
 # Тестовый режим (limit 10)
+go run cmd/export-bitrix-prices-mrc/main.go -output-dir=/Users/viktor/Desktop -limit=10
+go run cmd/export-bitrix-prices/main.go -output-dir=/Users/viktor/Desktop -limit=10
 go run cmd/export-bitrix-prices-moto/main.go -output-dir=/Users/viktor/Desktop -limit=10
 ```
 
@@ -145,15 +161,23 @@ Cron выражение: `0 10 * * *`
 
 ## Статистика (по состоянию на 19.03.2026)
 
+### МРЦ файл
+- Всего товаров: ~5,783 (все легковые с stock > 4, isimport = 0)
+- С МРЦ ценами: ~3,443 (совпадение CAE с mrc_etalon.article)
+- С обычными ценами: ~2,340 (нет в mrc_etalon)
+- **НЕ обновляет isimport**
+
 ### Легковые шины
 - Всего в номенклатуре: 53,690
 - С остатком > 0: ~6,500
 - Экспортируется (stock > 4, isimport = 0): ~5,783
+- **Обновляет isimport = 1**
 
 ### Мотошины
 - Всего в номенклатуре: 279
 - С остатком > 0: 80
 - Экспортируется (stock > 4, isimport = 0): ~46
+- **Обновляет isimport = 1**
 
 ## Troubleshooting
 

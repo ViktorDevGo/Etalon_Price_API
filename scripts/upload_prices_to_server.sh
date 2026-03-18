@@ -8,6 +8,7 @@ REMOTE_PASSWORD="k7MF4xi99Ty^^T"
 REMOTE_PATH="/home/bitrix/www/upload/1c_catalog"
 TEMP_DIR="/tmp/bitrix_export"
 DATE_STR=$(date +%Y%m%d)
+FILENAME_MRC="Переоценка_МРЦ_${DATE_STR}.csv"
 FILENAME_TYRES="Переоценка_шины_${DATE_STR}.csv"
 FILENAME_MOTO="Переоценка_мотошины_${DATE_STR}.csv"
 
@@ -27,7 +28,23 @@ mkdir -p "$TEMP_DIR"
 echo "📦 Шаг 1: Генерация файлов переоценки..."
 cd "$WORK_DIR"
 
-# 1.1 Легковые шины
+# ВАЖНО: Порядок генерации:
+# 1) МРЦ (НЕ обновляет isimport) - захватывает все данные
+# 2) Легковые шины (обновляет isimport = 1)
+# 3) Мотошины (обновляет isimport = 1)
+
+# 1.1 МРЦ (ПЕРВЫМ!)
+echo "  → Генерация файла МРЦ..."
+go run cmd/export-bitrix-prices-mrc/main.go --output-dir="$TEMP_DIR"
+
+if [ ! -f "$TEMP_DIR/$FILENAME_MRC" ]; then
+    echo "❌ Ошибка: файл МРЦ не создан!"
+    exit 1
+fi
+
+echo "  ✅ Файл создан: $FILENAME_MRC"
+
+# 1.2 Легковые шины
 echo "  → Генерация файла легковых шин..."
 go run cmd/export-bitrix-prices/main.go --output-dir="$TEMP_DIR"
 
@@ -38,7 +55,7 @@ fi
 
 echo "  ✅ Файл создан: $FILENAME_TYRES"
 
-# 1.2 Мотошины
+# 1.3 Мотошины
 echo "  → Генерация файла мотошин..."
 go run cmd/export-bitrix-prices-moto/main.go --output-dir="$TEMP_DIR"
 
@@ -53,7 +70,20 @@ echo ""
 # 2. Загружаем файлы на сервер
 echo "📤 Шаг 2: Загрузка файлов на сервер $REMOTE_HOST..."
 
-# 2.1 Легковые шины
+# 2.1 МРЦ
+echo "  → Загрузка файла МРЦ..."
+sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no \
+    "$TEMP_DIR/$FILENAME_MRC" \
+    "$REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/"
+
+if [ $? -eq 0 ]; then
+    echo "  ✅ Файл МРЦ загружен: $REMOTE_PATH/$FILENAME_MRC"
+else
+    echo "  ❌ Ошибка загрузки файла МРЦ"
+    exit 1
+fi
+
+# 2.2 Легковые шины
 echo "  → Загрузка файла легковых шин..."
 sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no \
     "$TEMP_DIR/$FILENAME_TYRES" \
@@ -66,7 +96,7 @@ else
     exit 1
 fi
 
-# 2.2 Мотошины
+# 2.3 Мотошины
 echo "  → Загрузка файла мотошин..."
 sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no \
     "$TEMP_DIR/$FILENAME_MOTO" \
@@ -83,6 +113,7 @@ echo ""
 
 # 3. Очистка временных файлов
 echo "🧹 Шаг 3: Очистка временных файлов..."
+rm -f "$TEMP_DIR/$FILENAME_MRC"
 rm -f "$TEMP_DIR/$FILENAME_TYRES"
 rm -f "$TEMP_DIR/$FILENAME_MOTO"
 echo "✅ Временные файлы удалены"
@@ -90,7 +121,8 @@ echo "✅ Временные файлы удалены"
 echo ""
 echo "================================================================"
 echo "✅ Выгрузка завершена успешно!"
-echo "📊 Загружено файлов: 2"
+echo "📊 Загружено файлов: 3"
+echo "   • МРЦ: $FILENAME_MRC"
 echo "   • Легковые шины: $FILENAME_TYRES"
 echo "   • Мотошины: $FILENAME_MOTO"
 echo "🕐 Время завершения: $(date '+%Y-%m-%d %H:%M:%S %Z')"
