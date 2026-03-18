@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prokoleso/etalon-price-api/internal/domain"
+	"github.com/prokoleso/etalon-price-api/internal/domain/severavto"
 )
 
 // PricesStockRepository handles prices and stock database operations
@@ -384,4 +385,286 @@ func (r *PricesStockRepository) CountUniqueCAEsInRimsPricesStock(ctx context.Con
 	var count int
 	err := r.pool.QueryRow(ctx, "SELECT COUNT(DISTINCT cae) FROM rims_prices_stock").Scan(&count)
 	return count, err
+}
+
+// ====================
+// Severavto Repository Methods
+// ====================
+
+// UpsertSeveravtoTyresPricesStock inserts or updates Severavto tyres prices and stock in batch
+func (r *PricesStockRepository) UpsertSeveravtoTyresPricesStock(ctx context.Context, items []severavto.TyrePriceStock) (newCount, updatedCount int, err error) {
+	if len(items) == 0 {
+		return 0, 0, nil
+	}
+
+	// Build list of (commodity_id, territory_name, provider) tuples to check
+	type keyTuple struct {
+		CommodityID   string
+		TerritoryName string
+		Provider      string
+	}
+	tuples := make([]keyTuple, len(items))
+	for i, item := range items {
+		tuples[i] = keyTuple{CommodityID: item.CommodityID, TerritoryName: item.TerritoryName, Provider: item.Provider}
+	}
+
+	// Get existing items in one query
+	existingKeys := make(map[keyTuple]bool)
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT commodity_id, territory_name, provider
+		FROM tyres_prices_stock_severavto
+		WHERE (commodity_id, territory_name, provider) IN (
+			SELECT unnest($1::text[]), unnest($2::text[]), unnest($3::text[])
+		)
+	`,
+		func() []string {
+			idList := make([]string, len(tuples))
+			for i, t := range tuples {
+				idList[i] = t.CommodityID
+			}
+			return idList
+		}(),
+		func() []string {
+			terrList := make([]string, len(tuples))
+			for i, t := range tuples {
+				terrList[i] = t.TerritoryName
+			}
+			return terrList
+		}(),
+		func() []string {
+			provList := make([]string, len(tuples))
+			for i, t := range tuples {
+				provList[i] = t.Provider
+			}
+			return provList
+		}(),
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var commodityID, terrName, prov string
+			if err := rows.Scan(&commodityID, &terrName, &prov); err == nil {
+				existingKeys[keyTuple{CommodityID: commodityID, TerritoryName: terrName, Provider: prov}] = true
+			}
+		}
+	}
+
+	// Count new vs updated
+	for _, item := range items {
+		if existingKeys[keyTuple{CommodityID: item.CommodityID, TerritoryName: item.TerritoryName, Provider: item.Provider}] {
+			updatedCount++
+		} else {
+			newCount++
+		}
+	}
+
+	// Bulk upsert
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Create temporary table
+	_, err = tx.Exec(ctx, `
+		CREATE TEMP TABLE temp_severavto_tyres_prices (
+			commodity_id VARCHAR(50),
+			territory_name VARCHAR(255),
+			price INTEGER,
+			price_delayed INTEGER,
+			price_rrp INTEGER,
+			stock INTEGER,
+			place_type VARCHAR(50),
+			is_sellout BOOLEAN,
+			provider VARCHAR(100)
+		) ON COMMIT DROP
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to create temp table: %w", err)
+	}
+
+	// Copy data to temp table
+	_, err = tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"temp_severavto_tyres_prices"},
+		[]string{"commodity_id", "territory_name", "price", "price_delayed", "price_rrp", "stock", "place_type", "is_sellout", "provider"},
+		pgx.CopyFromSlice(len(items), func(i int) ([]interface{}, error) {
+			item := items[i]
+			return []interface{}{
+				item.CommodityID, item.TerritoryName, item.Price, item.PriceDelayed,
+				item.PriceRRP, item.Stock, item.PlaceType, item.IsSellout, item.Provider,
+			}, nil
+		}),
+	)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	// Merge from temp table to main table
+	_, err = tx.Exec(ctx, `
+		INSERT INTO tyres_prices_stock_severavto (
+			commodity_id, territory_name, price, price_delayed, price_rrp,
+			stock, place_type, is_sellout, provider
+		)
+		SELECT
+			commodity_id, territory_name, price, price_delayed, price_rrp,
+			stock, place_type, is_sellout, provider
+		FROM temp_severavto_tyres_prices
+		ON CONFLICT (commodity_id, territory_name, provider) DO UPDATE SET
+			price = EXCLUDED.price,
+			price_delayed = EXCLUDED.price_delayed,
+			price_rrp = EXCLUDED.price_rrp,
+			stock = EXCLUDED.stock,
+			place_type = EXCLUDED.place_type,
+			is_sellout = EXCLUDED.is_sellout,
+			updated_at = CURRENT_TIMESTAMP
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to merge data: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return 0, 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return newCount, updatedCount, nil
+}
+
+// UpsertSeveravtoRimsPricesStock inserts or updates Severavto rims prices and stock in batch
+func (r *PricesStockRepository) UpsertSeveravtoRimsPricesStock(ctx context.Context, items []severavto.RimPriceStock) (newCount, updatedCount int, err error) {
+	if len(items) == 0 {
+		return 0, 0, nil
+	}
+
+	// Build list of (commodity_id, territory_name, provider) tuples to check
+	type keyTuple struct {
+		CommodityID   string
+		TerritoryName string
+		Provider      string
+	}
+	tuples := make([]keyTuple, len(items))
+	for i, item := range items {
+		tuples[i] = keyTuple{CommodityID: item.CommodityID, TerritoryName: item.TerritoryName, Provider: item.Provider}
+	}
+
+	// Get existing items in one query
+	existingKeys := make(map[keyTuple]bool)
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT commodity_id, territory_name, provider
+		FROM rims_prices_stock_severavto
+		WHERE (commodity_id, territory_name, provider) IN (
+			SELECT unnest($1::text[]), unnest($2::text[]), unnest($3::text[])
+		)
+	`,
+		func() []string {
+			idList := make([]string, len(tuples))
+			for i, t := range tuples {
+				idList[i] = t.CommodityID
+			}
+			return idList
+		}(),
+		func() []string {
+			terrList := make([]string, len(tuples))
+			for i, t := range tuples {
+				terrList[i] = t.TerritoryName
+			}
+			return terrList
+		}(),
+		func() []string {
+			provList := make([]string, len(tuples))
+			for i, t := range tuples {
+				provList[i] = t.Provider
+			}
+			return provList
+		}(),
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var commodityID, terrName, prov string
+			if err := rows.Scan(&commodityID, &terrName, &prov); err == nil {
+				existingKeys[keyTuple{CommodityID: commodityID, TerritoryName: terrName, Provider: prov}] = true
+			}
+		}
+	}
+
+	// Count new vs updated
+	for _, item := range items {
+		if existingKeys[keyTuple{CommodityID: item.CommodityID, TerritoryName: item.TerritoryName, Provider: item.Provider}] {
+			updatedCount++
+		} else {
+			newCount++
+		}
+	}
+
+	// Bulk upsert
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Create temporary table
+	_, err = tx.Exec(ctx, `
+		CREATE TEMP TABLE temp_severavto_rims_prices (
+			commodity_id VARCHAR(50),
+			territory_name VARCHAR(255),
+			price INTEGER,
+			price_delayed INTEGER,
+			price_rrp INTEGER,
+			stock INTEGER,
+			place_type VARCHAR(50),
+			is_sellout BOOLEAN,
+			provider VARCHAR(100)
+		) ON COMMIT DROP
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to create temp table: %w", err)
+	}
+
+	// Copy data to temp table
+	_, err = tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"temp_severavto_rims_prices"},
+		[]string{"commodity_id", "territory_name", "price", "price_delayed", "price_rrp", "stock", "place_type", "is_sellout", "provider"},
+		pgx.CopyFromSlice(len(items), func(i int) ([]interface{}, error) {
+			item := items[i]
+			return []interface{}{
+				item.CommodityID, item.TerritoryName, item.Price, item.PriceDelayed,
+				item.PriceRRP, item.Stock, item.PlaceType, item.IsSellout, item.Provider,
+			}, nil
+		}),
+	)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	// Merge from temp table to main table
+	_, err = tx.Exec(ctx, `
+		INSERT INTO rims_prices_stock_severavto (
+			commodity_id, territory_name, price, price_delayed, price_rrp,
+			stock, place_type, is_sellout, provider
+		)
+		SELECT
+			commodity_id, territory_name, price, price_delayed, price_rrp,
+			stock, place_type, is_sellout, provider
+		FROM temp_severavto_rims_prices
+		ON CONFLICT (commodity_id, territory_name, provider) DO UPDATE SET
+			price = EXCLUDED.price,
+			price_delayed = EXCLUDED.price_delayed,
+			price_rrp = EXCLUDED.price_rrp,
+			stock = EXCLUDED.stock,
+			place_type = EXCLUDED.place_type,
+			is_sellout = EXCLUDED.is_sellout,
+			updated_at = CURRENT_TIMESTAMP
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to merge data: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return 0, 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return newCount, updatedCount, nil
 }

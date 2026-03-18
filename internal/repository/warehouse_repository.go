@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prokoleso/etalon-price-api/internal/domain"
+	"github.com/prokoleso/etalon-price-api/internal/domain/severavto"
 )
 
 // WarehouseRepository handles warehouse database operations
@@ -227,4 +228,100 @@ func (r *WarehouseRepository) UpdateWarehousesSyncRun(ctx context.Context, id in
 	}
 
 	return nil
+}
+
+// ====================
+// Severavto Repository Methods
+// ====================
+
+// UpsertSeveravtoWarehouses inserts or updates Severavto warehouses (territories)
+func (r *WarehouseRepository) UpsertSeveravtoWarehouses(ctx context.Context, warehouses []severavto.Warehouse) (newCount, updatedCount int, err error) {
+	if len(warehouses) == 0 {
+		return 0, 0, nil
+	}
+
+	// Check which warehouses already exist
+	territoryNames := make([]string, len(warehouses))
+	for i, w := range warehouses {
+		territoryNames[i] = w.TerritoryName
+	}
+
+	existingNames := make(map[string]bool)
+	rows, err := r.pool.Query(ctx, `
+		SELECT territory_name
+		FROM warehouses_severavto
+		WHERE territory_name = ANY($1)
+	`, territoryNames)
+
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var name string
+			if err := rows.Scan(&name); err == nil {
+				existingNames[name] = true
+			}
+		}
+	}
+
+	// Count new vs updated
+	for _, w := range warehouses {
+		if existingNames[w.TerritoryName] {
+			updatedCount++
+		} else {
+			newCount++
+		}
+	}
+
+	// Bulk upsert
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Create temporary table
+	_, err = tx.Exec(ctx, `
+		CREATE TEMP TABLE temp_severavto_warehouses (
+			territory_name VARCHAR(255),
+			region VARCHAR(255),
+			place_type VARCHAR(50)
+		) ON COMMIT DROP
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to create temp table: %w", err)
+	}
+
+	// Copy data to temp table
+	_, err = tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"temp_severavto_warehouses"},
+		[]string{"territory_name", "region", "place_type"},
+		pgx.CopyFromSlice(len(warehouses), func(i int) ([]interface{}, error) {
+			w := warehouses[i]
+			return []interface{}{w.TerritoryName, w.Region, w.PlaceType}, nil
+		}),
+	)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	// Merge from temp table to main table
+	_, err = tx.Exec(ctx, `
+		INSERT INTO warehouses_severavto (territory_name, region, place_type)
+		SELECT territory_name, region, place_type
+		FROM temp_severavto_warehouses
+		ON CONFLICT (territory_name) DO UPDATE SET
+			region = EXCLUDED.region,
+			place_type = EXCLUDED.place_type,
+			updated_at = CURRENT_TIMESTAMP
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to merge data: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return 0, 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return newCount, updatedCount, nil
 }

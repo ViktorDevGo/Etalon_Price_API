@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prokoleso/etalon-price-api/internal/domain"
+	"github.com/prokoleso/etalon-price-api/internal/domain/severavto"
 )
 
 // NomenclatureRepository handles nomenclature database operations
@@ -294,4 +295,168 @@ func (r *NomenclatureRepository) CountRims(ctx context.Context) (int, error) {
 	var count int
 	err := r.pool.QueryRow(ctx, "SELECT COUNT(*) FROM nomenclature_rims").Scan(&count)
 	return count, err
+}
+
+// ====================
+// Severavto Repository Methods
+// ====================
+
+// UpsertSeveravtoTyres inserts new Severavto tyres (skips if commodity_id already exists)
+func (r *NomenclatureRepository) UpsertSeveravtoTyres(ctx context.Context, tyres []domain.NomenclatureTyre) (newCount, skippedCount int, err error) {
+	if len(tyres) == 0 {
+		return 0, 0, nil
+	}
+
+	// Bulk upsert using CopyFrom
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Create temporary table
+	_, err = tx.Exec(ctx, `
+		CREATE TEMP TABLE temp_severavto_tyres (LIKE nomenclature_tyres_severavto INCLUDING ALL) ON COMMIT DROP
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to create temp table: %w", err)
+	}
+
+	// Prepare columns list
+	columns := []string{
+		"commodity_id", "article", "name", "brand", "model",
+		"width", "height", "diameter", "load_index", "speed_index",
+		"season", "is_studded", "tiretype", "runflat", "manufacture_year",
+	}
+
+	// Copy data to temp table
+	_, err = tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"temp_severavto_tyres"},
+		columns,
+		pgx.CopyFromSlice(len(tyres), func(i int) ([]interface{}, error) {
+			t := tyres[i]
+			return []interface{}{
+				t.CommodityID, t.Article, t.Name, t.Brand, t.Model,
+				t.Width, t.Height, t.Diameter, t.LoadIndex, t.SpeedIndex,
+				t.Season, t.IsStudded, t.TireType, t.RunFlat, t.ManufactureYear,
+			}, nil
+		}),
+	)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	// Insert only records with new commodity_id
+	// Skip if commodity_id already exists in database
+	result, err := tx.Exec(ctx, `
+		INSERT INTO nomenclature_tyres_severavto (
+			commodity_id, article, name, brand, model,
+			width, height, diameter, load_index, speed_index,
+			season, is_studded, tiretype, runflat, manufacture_year
+		)
+		SELECT
+			t.commodity_id, t.article, t.name, t.brand, t.model,
+			t.width, t.height, t.diameter, t.load_index, t.speed_index,
+			t.season, t.is_studded, t.tiretype, t.runflat, t.manufacture_year
+		FROM temp_severavto_tyres t
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM nomenclature_tyres_severavto nt
+			WHERE nt.commodity_id = t.commodity_id
+		)
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to insert data: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return 0, 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Get actual inserted count
+	newCount = int(result.RowsAffected())
+	skippedCount = len(tyres) - newCount
+
+	return newCount, skippedCount, nil
+}
+
+// UpsertSeveravtoRims inserts new Severavto rims (skips if commodity_id already exists)
+func (r *NomenclatureRepository) UpsertSeveravtoRims(ctx context.Context, rims []domain.NomenclatureRim) (newCount, skippedCount int, err error) {
+	if len(rims) == 0 {
+		return 0, 0, nil
+	}
+
+	// Bulk upsert using CopyFrom
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Create temporary table
+	_, err = tx.Exec(ctx, `
+		CREATE TEMP TABLE temp_severavto_rims (LIKE nomenclature_rims_severavto INCLUDING ALL) ON COMMIT DROP
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to create temp table: %w", err)
+	}
+
+	// Prepare columns list
+	columns := []string{
+		"commodity_id", "article", "name", "brand", "model",
+		"width", "diameter", "bolts_count", "bolts_spacing", "bolts_spacing2",
+		"et", "dia", "color", "rim_type", "manufacture_year",
+	}
+
+	// Copy data to temp table
+	_, err = tx.CopyFrom(
+		ctx,
+		pgx.Identifier{"temp_severavto_rims"},
+		columns,
+		pgx.CopyFromSlice(len(rims), func(i int) ([]interface{}, error) {
+			rim := rims[i]
+			return []interface{}{
+				rim.CommodityID, rim.Article, rim.Name, rim.Brand, rim.Model,
+				rim.Width, rim.Diameter, rim.BoltsCount, rim.BoltsSpacing, rim.BoltsSpacing2,
+				rim.ET, rim.DIA, rim.Color, rim.RimType, rim.ManufactureYear,
+			}, nil
+		}),
+	)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	// Insert only records with new commodity_id
+	// Skip if commodity_id already exists in database
+	result, err := tx.Exec(ctx, `
+		INSERT INTO nomenclature_rims_severavto (
+			commodity_id, article, name, brand, model,
+			width, diameter, bolts_count, bolts_spacing, bolts_spacing2,
+			et, dia, color, rim_type, manufacture_year
+		)
+		SELECT
+			r.commodity_id, r.article, r.name, r.brand, r.model,
+			r.width, r.diameter, r.bolts_count, r.bolts_spacing, r.bolts_spacing2,
+			r.et, r.dia, r.color, r.rim_type, r.manufacture_year
+		FROM temp_severavto_rims r
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM nomenclature_rims_severavto nr
+			WHERE nr.commodity_id = r.commodity_id
+		)
+	`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to insert data: %w", err)
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return 0, 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Get actual inserted count
+	newCount = int(result.RowsAffected())
+	skippedCount = len(rims) - newCount
+
+	return newCount, skippedCount, nil
 }

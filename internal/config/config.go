@@ -9,131 +9,81 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	App        AppConfig
-	HTTP       HTTPConfig
-	Database   DatabaseConfig
-	Fourtochki FourtochkiConfig
-	Email      EmailConfig
+	// General
+	AppEnv   string
+	LogLevel string
+
+	// HTTP
+	HTTPPort string
+
+	// Database
+	DatabaseDSN string
+
+	// Fourtochki (4tochki) Provider
+	FourtochkiWSDLURL    string
+	FourtochkiLogin      string
+	FourtochkiPassword   string
+	FourtochkiBatchSize  int
+	FourtochkiTimeout    time.Duration
+	FourtochkiRetryCount int
+	FourtochkiRetryDelay time.Duration
+	FourtochkiBatchDelay time.Duration
+
+	// Severavto Provider
+	SeveravtoBaseURL string
+	SeveravtoAPIKey  string
+	SeveravtoTimeout string
+
+	// Email
+	EmailEnabled        bool
+	EmailSMTPHost       string
+	EmailSMTPPort       int
+	EmailUsername       string
+	EmailPassword       string
+	EmailFrom           string
+	EmailNotificationTo string
 }
 
-// AppConfig contains general application settings
-type AppConfig struct {
-	Env      string // development, production
-	LogLevel string // debug, info, warn, error
-}
-
-// HTTPConfig contains HTTP server settings
-type HTTPConfig struct {
-	Port string
-}
-
-// DatabaseConfig contains database connection settings
-type DatabaseConfig struct {
-	DSN string
-}
-
-// FourtochkiConfig contains 4tochki provider settings
-type FourtochkiConfig struct {
-	WSDLURL    string
-	Login      string
-	Password   string
-	BatchSize  int
-	Timeout    time.Duration
-	RetryCount int
-	RetryDelay time.Duration
-	BatchDelay time.Duration
-}
-
-// EmailConfig contains email notification settings
-type EmailConfig struct {
-	Enabled        bool
-	SMTPHost       string
-	SMTPPort       int
-	Username       string
-	Password       string
-	From           string
-	NotificationTo string
-}
 
 // Load reads configuration from environment variables
-func Load() (*Config, error) {
-	cfg := &Config{
-		App: AppConfig{
-			Env:      getEnv("APP_ENV", "development"),
-			LogLevel: getEnv("LOG_LEVEL", "info"),
-		},
-		HTTP: HTTPConfig{
-			Port: getEnv("HTTP_PORT", "8080"),
-		},
-		Database: DatabaseConfig{
-			DSN: getEnv("DB_DSN", ""),
-		},
-		Fourtochki: FourtochkiConfig{
-			WSDLURL:    getEnv("FOURTOCHKI_WSDL_URL", "http://api-b2b.4tochki.ru/WCF/ClientService.svc?wsdl"),
-			Login:      getEnv("FOURTOCHKI_LOGIN", ""),
-			Password:   getEnv("FOURTOCHKI_PASSWORD", ""),
-			BatchSize:  getEnvAsInt("FOURTOCHKI_BATCH_SIZE", 100),
-			Timeout:    getEnvAsDuration("FOURTOCHKI_TIMEOUT", 30*time.Second),
-			RetryCount: getEnvAsInt("FOURTOCHKI_RETRY_COUNT", 3),
-			RetryDelay: getEnvAsDuration("FOURTOCHKI_RETRY_DELAY", 5*time.Second),
-			BatchDelay: getEnvAsDuration("FOURTOCHKI_BATCH_DELAY", 1*time.Second),
-		},
-		Email: EmailConfig{
-			Enabled:        getEnvAsBool("EMAIL_ENABLED", true),
-			SMTPHost:       getEnv("EMAIL_SMTP_HOST", "mail.hosting.reg.ru"),
-			SMTPPort:       getEnvAsInt("EMAIL_SMTP_PORT", 465),
-			Username:       getEnv("EMAIL_USERNAME", ""),
-			Password:       getEnv("EMAIL_PASSWORD", ""),
-			From:           getEnv("EMAIL_FROM", "admin@etalon-shina.ru"),
-			NotificationTo: getEnv("EMAIL_NOTIFICATION_TO", "v.boyarkin@etalon-shina.ru"),
-		},
-	}
+func Load() *Config {
+	return &Config{
+		// General
+		AppEnv:   getEnv("APP_ENV", "development"),
+		LogLevel: getEnv("LOG_LEVEL", "info"),
 
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("config validation failed: %w", err)
-	}
+		// HTTP
+		HTTPPort: getEnv("HTTP_PORT", "8080"),
 
-	return cfg, nil
+		// Database
+		DatabaseDSN: getEnv("DATABASE_DSN", getEnv("DB_DSN", "")),
+
+		// Fourtochki
+		FourtochkiWSDLURL:    getEnv("FOURTOCHKI_WSDL_URL", "http://api-b2b.4tochki.ru/WCF/ClientService.svc?wsdl"),
+		FourtochkiLogin:      getEnv("FOURTOCHKI_LOGIN", ""),
+		FourtochkiPassword:   getEnv("FOURTOCHKI_PASSWORD", ""),
+		FourtochkiBatchSize:  getEnvAsInt("FOURTOCHKI_BATCH_SIZE", 100),
+		FourtochkiTimeout:    getEnvAsDuration("FOURTOCHKI_TIMEOUT", 30*time.Second),
+		FourtochkiRetryCount: getEnvAsInt("FOURTOCHKI_RETRY_COUNT", 3),
+		FourtochkiRetryDelay: getEnvAsDuration("FOURTOCHKI_RETRY_DELAY", 5*time.Second),
+		FourtochkiBatchDelay: getEnvAsDuration("FOURTOCHKI_BATCH_DELAY", 1*time.Second),
+
+		// Severavto
+		SeveravtoBaseURL: getEnv("SEVERAVTO_BASE_URL", "https://webmim.svrauto.ru"),
+		SeveravtoAPIKey:  getEnv("SEVERAVTO_API_KEY", ""),
+		SeveravtoTimeout: getEnv("SEVERAVTO_TIMEOUT", "60s"),
+
+		// Email
+		EmailEnabled:        getEnvAsBool("EMAIL_ENABLED", true),
+		EmailSMTPHost:       getEnv("EMAIL_SMTP_HOST", "mail.hosting.reg.ru"),
+		EmailSMTPPort:       getEnvAsInt("EMAIL_SMTP_PORT", 465),
+		EmailUsername:       getEnv("EMAIL_USERNAME", ""),
+		EmailPassword:       getEnv("EMAIL_PASSWORD", ""),
+		EmailFrom:           getEnv("EMAIL_FROM", "admin@etalon-shina.ru"),
+		EmailNotificationTo: getEnv("EMAIL_NOTIFICATION_TO", "v.boyarkin@etalon-shina.ru"),
+	}
 }
 
-// Validate checks if all required configuration parameters are set
-func (c *Config) Validate() error {
-	if c.Database.DSN == "" {
-		return fmt.Errorf("DB_DSN is required")
-	}
-
-	if c.Fourtochki.Login == "" {
-		return fmt.Errorf("FOURTOCHKI_LOGIN is required")
-	}
-
-	if c.Fourtochki.Password == "" {
-		return fmt.Errorf("FOURTOCHKI_PASSWORD is required")
-	}
-
-	if c.Fourtochki.BatchSize <= 0 {
-		return fmt.Errorf("FOURTOCHKI_BATCH_SIZE must be positive")
-	}
-
-	if c.Fourtochki.Timeout <= 0 {
-		return fmt.Errorf("FOURTOCHKI_TIMEOUT must be positive")
-	}
-
-	if c.Fourtochki.RetryCount < 0 {
-		return fmt.Errorf("FOURTOCHKI_RETRY_COUNT must be non-negative")
-	}
-
-	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
-	if !validLogLevels[c.App.LogLevel] {
-		return fmt.Errorf("LOG_LEVEL must be one of: debug, info, warn, error")
-	}
-
-	validEnvs := map[string]bool{"development": true, "production": true, "staging": true}
-	if !validEnvs[c.App.Env] {
-		return fmt.Errorf("APP_ENV must be one of: development, production, staging")
-	}
-
-	return nil
-}
 
 // getEnv reads an environment variable or returns a default value
 func getEnv(key, defaultValue string) string {
