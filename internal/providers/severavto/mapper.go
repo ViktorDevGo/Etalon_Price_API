@@ -24,16 +24,16 @@ func mapToNomenclatureTyres(commodities []Commodity) []severavto.NomenclatureTyr
 	for _, c := range unique {
 		result = append(result, severavto.NomenclatureTyre{
 			CommodityID:     c.ID,
-			Article:         c.Article,
-			Name:            buildTyreName(c),
+			Article:         c.MnfCode, // Код производителя в качестве артикула
+			Name:            c.ModifName,
 			Brand:           c.Brand,
 			Model:           c.Model,
 			Width:           parseFloat(c.Width),
 			Height:          parseFloat(c.Height),
-			Diameter:        normalizeDiameter(c.Radius),
+			Diameter:        c.Diameter, // Уже строка, не нужно преобразование
 			LoadIndex:       c.Load,
 			SpeedIndex:      c.Speed,
-			Season:          detectSeason(c.Thorning, c.Model),
+			Season:          normalizeSeason(c.Season), // Используем поле Season из API
 			IsStudded:       normalizeStudded(c.Thorning),
 			TireType:        "Легковая", // по умолчанию
 			RunFlat:         detectRunFlat(c.Model),
@@ -61,12 +61,12 @@ func mapToNomenclatureRims(commodities []Commodity) []severavto.NomenclatureRim 
 	for _, c := range unique {
 		result = append(result, severavto.NomenclatureRim{
 			CommodityID:     c.ID,
-			Article:         c.Article,
-			Name:            buildRimName(c),
+			Article:         c.MnfCode, // Код производителя в качестве артикула
+			Name:            c.ModifName,
 			Brand:           c.Brand,
 			Model:           c.Model,
 			Width:           parseFloat(c.Width),
-			Diameter:        parseFloat(c.Radius),
+			Diameter:        parseFloat(c.Diameter),
 			ManufactureYear: parseInt(c.ManufactureYear),
 			CreatedAt:       time.Now(),
 			UpdatedAt:       time.Now(),
@@ -195,6 +195,14 @@ func detectSeason(thorning, model string) string {
 	return ""
 }
 
+// normalizeSeason нормализует значение сезона из API
+func normalizeSeason(season string) string {
+	season = strings.TrimSpace(season)
+	// API может возвращать: "Зимняя", "Летняя", "Всесезонная"
+	// Возвращаем как есть
+	return season
+}
+
 // normalizeStudded нормализует значение поля "шипы"
 func normalizeStudded(thorning string) string {
 	if thorning == "Да" {
@@ -243,8 +251,8 @@ func buildTyreName(c Commodity) string {
 		parts = append(parts, c.Width+"/"+c.Height)
 	}
 
-	if c.Radius != "" {
-		parts = append(parts, normalizeDiameter(c.Radius))
+	if c.Diameter != "" {
+		parts = append(parts, normalizeDiameter(c.Diameter))
 	}
 
 	if c.Load != "" && c.Speed != "" {
@@ -260,8 +268,8 @@ func buildRimName(c Commodity) string {
 	// Пример: K&K КС681 6.5x16
 	parts := []string{c.Brand, c.Model}
 
-	if c.Width != "" && c.Radius != "" {
-		parts = append(parts, c.Width+"x"+c.Radius)
+	if c.Width != "" && c.Diameter != "" {
+		parts = append(parts, c.Width+"x"+c.Diameter)
 	}
 
 	return strings.Join(parts, " ")

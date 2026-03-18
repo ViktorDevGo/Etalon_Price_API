@@ -97,12 +97,14 @@ func (c *Client) fetchXML(
 		return nil, ErrRateLimitExceeded
 	}
 
-	// 2. Построение URL
-	// Формат: https://webmim.svrauto.ru/api/1/export_data?key={API_KEY}&type={tyre|disc}&place=warehouse
-	url := fmt.Sprintf("%s/api/1/export_data?key=%s&type=%s&place=warehouse",
-		c.baseURL, c.apiKey, productType)
+	// 2. Построение URL (новый API v1)
+	// Формат: http://webmim.svrauto.ru/api/v1/catalog/unload?access-token={API_KEY}&format=xml
+	// ВАЖНО: НЕ HTTPS! API работает только по HTTP
+	url := fmt.Sprintf("%s/api/v1/catalog/unload?access-token=%s&format=xml",
+		c.baseURL, c.apiKey)
 
-	logger.Info("Fetching XML from Severavto API", "url", url)
+	logger.Info("Fetching XML from Severavto API",
+		"url", c.baseURL+"/api/v1/catalog/unload?access-token=***&format=xml")
 
 	// 3. Создание HTTP запроса
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -148,14 +150,17 @@ func (c *Client) fetchXML(
 		return nil, fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
 	}
 
-	// 9. Парсинг XML
-	var result CommoditiesXML
+	// 9. Парсинг XML (корневой элемент CATALOG)
+	var catalog CatalogXML
 	decoder := xml.NewDecoder(resp.Body)
-	if err := decoder.Decode(&result); err != nil {
+	if err := decoder.Decode(&catalog); err != nil {
 		return nil, fmt.Errorf("xml decode: %w", err)
 	}
 
-	logger.Info("XML parsed successfully", "commodities_count", len(result.Commodities))
+	result := &catalog.Commodities
+	logger.Info("XML parsed successfully",
+		"category", result.Value,
+		"commodities_count", len(result.Commodities))
 
 	// 10. Сохранение Last-Modified для кэширования
 	if lm := resp.Header.Get("Last-Modified"); lm != "" {
@@ -168,5 +173,5 @@ func (c *Client) fetchXML(
 	// 11. Обновление времени последнего запроса
 	*lastFetch = time.Now()
 
-	return &result, nil
+	return result, nil
 }

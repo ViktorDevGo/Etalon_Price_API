@@ -141,7 +141,26 @@
       "Bash(/tmp/split_csv.go:*)",
       "Bash(/tmp/verify_csv.go:*)",
       "Bash(git add:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:webmim.svrauto.ru)",
+      "Bash(find:*)",
+      "Bash(test:*)",
+      "Bash(source:*)",
+      "Bash(docker-compose:*)",
+      "Bash(export PGSSLROOTCERT=$HOME/.cloud-certs/root.crt:*)",
+      "Bash(export:*)",
+      "Bash(export SEVERAVTO_BASE_URL=\"https://webmim.svrauto.ru\")",
+      "Bash(export SEVERAVTO_TIMEOUT=\"120s\")",
+      "Bash(export DATABASE_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\")",
+      "Bash(export EMAIL_ENABLED=\"true\")",
+      "Bash(export EMAIL_SMTP_HOST=\"mail.hosting.reg.ru\")",
+      "Bash(export EMAIL_SMTP_PORT=\"587\")",
+      "Bash(export EMAIL_USERNAME=\"admin@etalon-shina.ru\")",
+      "Bash(export EMAIL_PASSWORD=\"S69Y1ypojVLCZHO8\")",
+      "Bash(export EMAIL_NOTIFICATION_TO=\"v.boyarkin@etalon-shina.ru\")",
+      "Bash(git reset:*)"
     ]
   }
 }

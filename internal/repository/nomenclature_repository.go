@@ -302,7 +302,7 @@ func (r *NomenclatureRepository) CountRims(ctx context.Context) (int, error) {
 // ====================
 
 // UpsertSeveravtoTyres inserts new Severavto tyres (skips if commodity_id already exists)
-func (r *NomenclatureRepository) UpsertSeveravtoTyres(ctx context.Context, tyres []domain.NomenclatureTyre) (newCount, skippedCount int, err error) {
+func (r *NomenclatureRepository) UpsertSeveravtoTyres(ctx context.Context, tyres []severavto.NomenclatureTyre) (newCount, skippedCount int, err error) {
 	if len(tyres) == 0 {
 		return 0, 0, nil
 	}
@@ -382,7 +382,7 @@ func (r *NomenclatureRepository) UpsertSeveravtoTyres(ctx context.Context, tyres
 }
 
 // UpsertSeveravtoRims inserts new Severavto rims (skips if commodity_id already exists)
-func (r *NomenclatureRepository) UpsertSeveravtoRims(ctx context.Context, rims []domain.NomenclatureRim) (newCount, skippedCount int, err error) {
+func (r *NomenclatureRepository) UpsertSeveravtoRims(ctx context.Context, rims []severavto.NomenclatureRim) (newCount, skippedCount int, err error) {
 	if len(rims) == 0 {
 		return 0, 0, nil
 	}

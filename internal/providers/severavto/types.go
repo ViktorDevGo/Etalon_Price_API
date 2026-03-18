@@ -2,9 +2,18 @@ package severavto
 
 import "encoding/xml"
 
-// CommoditiesXML представляет корневой элемент XML ответа от API Северавто
+// CatalogXML представляет корневой элемент XML ответа от API Северавто
+type CatalogXML struct {
+	XMLName     xml.Name        `xml:"CATALOG"`
+	Commodities CommoditiesXML  `xml:"COMMODITIES"` // Категории товаров
+}
+
+// CommoditiesXML представляет категорию товаров (Шины/Диски)
 type CommoditiesXML struct {
 	XMLName     xml.Name     `xml:"COMMODITIES"`
+	Name        string       `xml:"NAME,attr"`   // Английское название категории
+	ID          string       `xml:"ID,attr"`     // Уникальный идентификатор категории
+	Value       string       `xml:"VALUE,attr"`  // Русское название (Шины/Диски)
 	Description Description  `xml:"DESCRIPTION"` // Описание полей (meta)
 	Commodities []Commodity  `xml:"COMMODITY"`   // Список товаров
 }
@@ -17,24 +26,26 @@ type Description struct {
 // Commodity представляет один товар с остатками (одна запись = товар на одной территории)
 type Commodity struct {
 	// Идентификаторы
-	ID      string `xml:"NNCOMMODIF"` // Уникальный ID товара (RN, commodityId)
-	Article string `xml:"SARTICLE"`   // Артикул товара
+	ID        string `xml:"NNCOMMODIF"` // Уникальный ID товара (RN, commodityId)
+	ModifName string `xml:"SMODIFNAME"` // Наименование товара
 
 	// Основная информация
-	Brand string `xml:"SBREND"` // Бренд (производитель)
-	Model string `xml:"SMODEL"` // Модель
+	GoodLand string `xml:"SGOODLAND"` // Происхождение
+	Season   string `xml:"SSEASON"`   // Сезон резины (Зимняя/Летняя/Всесезонная)
+	Brand    string `xml:"SMARKA"`    // Марка (бренд, производитель)
+	Model    string `xml:"SMODEL"`    // Модель
 
 	// Параметры шины
-	Width  string `xml:"SWIDTH"`  // Ширина (195, 205 и т.д.)
-	Height string `xml:"SHEIGHT"` // Профиль/высота (65, 55 и т.д.)
-	Radius string `xml:"SRADIUS"` // Радиус (R15, R16 и т.д.)
+	Diameter string `xml:"SDIAMETR"` // Диаметр (13, 14, 15 и т.д.)
+	Width    string `xml:"SWIDTH"`   // Ширина (195, 205 и т.д.)
+	Height   string `xml:"SHEIGHT"`  // Профиль/высота (65, 55 и т.д.)
 
 	// Дополнительные параметры шины
-	Thorning      string `xml:"STHORNING"`    // Шипы (Да/Нет)
-	Speed         string `xml:"SSPEED"`       // Индекс скорости (T, H, V и т.д.)
-	Load          string `xml:"SLOAD"`        // Индекс нагрузки (91, 95 и т.д.)
-	ThornType     string `xml:"STHORNTYPE"`   // Вид ошиповки
-	ManufactureCode string `xml:"SMNFCODE"`   // Код производителя
+	Thorning    string `xml:"STHORNING"`  // Шипы (Да/Нет)
+	Speed       string `xml:"SSPEED"`     // Индекс скорости (T, H, V и т.д.)
+	Load        string `xml:"SLOAD"`      // Индекс нагрузки (91, 95 и т.д.)
+	ThornType   string `xml:"STHORNTYPE"` // Вид ошиповки
+	MnfCode     string `xml:"SMNFCODE"`   // Код производителя
 
 	// Параметры диска (если это диск)
 	// ET, DIA, PCD и т.д. (аналогично шинам, но другие названия полей)
@@ -53,7 +64,7 @@ type Commodity struct {
 	PriceCliP       string `xml:"NPRICE_CLI_P"`      // Клиентская цена (предоплата)
 
 	// Дополнительная информация
-	Sellout        string `xml:"SSELLOUT"`    // Распродажа (Да/Нет)
-	Picture        string `xml:"SPICTURE"`    // Картинка (URL)
-	ManufactureYear string `xml:"SMNFYEAR"`   // Год производства
+	Sellout         string `xml:"SSELLOUT"`  // Распродажа (Да/Нет)
+	Picture         string `xml:"SPICTURE"`  // Картинка (URL)
+	ManufactureYear string `xml:"SMNFYEAR"`  // Год производства
 }

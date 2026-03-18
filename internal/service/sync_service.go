@@ -46,8 +46,8 @@ type SyncOptions struct {
 	BatchDelay time.Duration // Delay between batches
 }
 
-// SyncResult contains synchronization results
-type SyncResult struct {
+// SupplierSyncResult contains synchronization results
+type SupplierSyncResult struct {
 	SyncRunID       int64
 	Provider        string
 	TotalProducts   int
@@ -58,7 +58,7 @@ type SyncResult struct {
 }
 
 // SyncSupplier synchronizes data from a specific supplier
-func (s *SyncService) SyncSupplier(ctx context.Context, providerName string, opts SyncOptions) (*SyncResult, error) {
+func (s *SyncService) SyncSupplier(ctx context.Context, providerName string, opts SyncOptions) (*SupplierSyncResult, error) {
 	s.logger.Info("Starting supplier sync",
 		"provider", providerName,
 		"codes_count", len(opts.Codes),
@@ -79,7 +79,7 @@ func (s *SyncService) SyncSupplier(ctx context.Context, providerName string, opt
 		return nil, fmt.Errorf("failed to create sync run: %w", err)
 	}
 
-	result := &SyncResult{
+	result := &SupplierSyncResult{
 		SyncRunID: syncRunID,
 		Provider:  providerName,
 		Errors:    []error{},
@@ -134,7 +134,7 @@ func (s *SyncService) processBatches(
 	provider providers.SupplierProvider,
 	codes []string,
 	opts SyncOptions,
-	result *SyncResult,
+	result *SupplierSyncResult,
 ) error {
 	batchSize := opts.BatchSize
 	if batchSize <= 0 {
@@ -199,7 +199,7 @@ func (s *SyncService) processBatch(
 	ctx context.Context,
 	provider providers.SupplierProvider,
 	codes []string,
-	result *SyncResult,
+	result *SupplierSyncResult,
 ) error {
 	// Fetch goods info
 	goodsResult, err := provider.FetchGoodsInfo(ctx, codes)
@@ -276,7 +276,7 @@ func (s *SyncService) createSyncRun(ctx context.Context, provider string) (int64
 }
 
 // completeSyncRun marks sync run as completed
-func (s *SyncService) completeSyncRun(ctx context.Context, syncRunID int64, result *SyncResult) error {
+func (s *SyncService) completeSyncRun(ctx context.Context, syncRunID int64, result *SupplierSyncResult) error {
 	repo := postgres.NewSyncRunsRepository(s.db.Pool())
 	return repo.Complete(ctx, syncRunID, result.TotalProducts, result.SuccessProducts, result.FailedProducts)
 }

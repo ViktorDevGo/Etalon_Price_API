@@ -13,12 +13,13 @@ import (
 
 // SeveravtoSyncService orchestrates synchronization with Severavto API
 type SeveravtoSyncService struct {
-	provider      *severavto.Provider
-	nomenclRepo   *repository.NomenclatureRepository
-	pricesRepo    *repository.PricesStockRepository
-	warehouseRepo *repository.WarehouseRepository
-	emailService  *email.Service
-	logger        *slog.Logger
+	provider         *severavto.Provider
+	nomenclRepo      *repository.NomenclatureRepository
+	pricesRepo       *repository.PricesStockRepository
+	warehouseRepo    *repository.WarehouseRepository
+	emailService     *email.Client
+	notificationEmail string
+	logger           *slog.Logger
 }
 
 // NewSeveravtoSyncService creates a new Severavto sync service
@@ -27,16 +28,18 @@ func NewSeveravtoSyncService(
 	nomenclRepo *repository.NomenclatureRepository,
 	pricesRepo *repository.PricesStockRepository,
 	warehouseRepo *repository.WarehouseRepository,
-	emailService *email.Service,
+	emailService *email.Client,
+	notificationEmail string,
 	logger *slog.Logger,
 ) *SeveravtoSyncService {
 	return &SeveravtoSyncService{
-		provider:      provider,
-		nomenclRepo:   nomenclRepo,
-		pricesRepo:    pricesRepo,
-		warehouseRepo: warehouseRepo,
-		emailService:  emailService,
-		logger:        logger.With("service", "severavto_sync"),
+		provider:         provider,
+		nomenclRepo:      nomenclRepo,
+		pricesRepo:       pricesRepo,
+		warehouseRepo:    warehouseRepo,
+		emailService:     emailService,
+		notificationEmail: notificationEmail,
+		logger:           logger.With("service", "severavto_sync"),
 	}
 }
 
@@ -226,7 +229,12 @@ func (s *SeveravtoSyncService) sendSuccessEmail(subject string, stats map[string
 		stats["territories"],
 	)
 
-	if err := s.emailService.SendNotification(subject+" - Успешно", body); err != nil {
+	if err := s.emailService.Send(email.Message{
+		To:      []string{s.notificationEmail},
+		Subject: subject + " - Успешно",
+		Body:    body,
+		HTML:    true,
+	}); err != nil {
 		s.logger.Error("Failed to send success email", "error", err)
 	}
 }
@@ -249,7 +257,12 @@ func (s *SeveravtoSyncService) sendErrorEmail(subject string, errorMsg string) {
 		errorMsg,
 	)
 
-	if err := s.emailService.SendNotification(subject+" - Ошибка", body); err != nil {
+	if err := s.emailService.Send(email.Message{
+		To:      []string{s.notificationEmail},
+		Subject: subject + " - Ошибка",
+		Body:    body,
+		HTML:    true,
+	}); err != nil {
 		s.logger.Error("Failed to send error email", "error", err)
 	}
 }

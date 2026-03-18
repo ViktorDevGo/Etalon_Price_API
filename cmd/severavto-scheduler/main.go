@@ -46,16 +46,15 @@ func main() {
 	pricesRepo := repository.NewPricesStockRepository(pool)
 	warehouseRepo := repository.NewWarehouseRepository(pool)
 
-	// Create email service (if enabled)
-	var emailService *email.Service
+	// Create email client (if enabled)
+	var emailService *email.Client
 	if cfg.EmailEnabled {
-		emailService = email.NewService(email.Config{
+		emailService = email.NewClient(email.Config{
 			SMTPHost: cfg.EmailSMTPHost,
 			SMTPPort: cfg.EmailSMTPPort,
 			Username: cfg.EmailUsername,
 			Password: cfg.EmailPassword,
 			From:     cfg.EmailFrom,
-			To:       cfg.EmailNotificationTo,
 		}, logger)
 	}
 
@@ -74,6 +73,7 @@ func main() {
 		pricesRepo,
 		warehouseRepo,
 		emailService,
+		cfg.EmailNotificationTo,
 		logger,
 	)
 
