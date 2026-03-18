@@ -8,6 +8,7 @@ DATE_STR=$(date +%Y%m%d)
 FILENAME_MRC="Переоценка_МРЦ_${DATE_STR}.csv"
 FILENAME_TYRES="Переоценка_шины_${DATE_STR}.csv"
 FILENAME_MOTO="Переоценка_мотошины_${DATE_STR}.csv"
+FILENAME_RIMS="Переоценка_диски_${DATE_STR}.csv"
 WORK_DIR="${WORK_DIR:-/Users/viktor/Pro_Koleso/Etalon_Price_API}"
 
 echo "================================================================"
@@ -23,7 +24,7 @@ mkdir -p "$TEMP_DIR"
 echo "📦 Шаг 1: Генерация файлов переоценки..."
 cd "$WORK_DIR"
 
-# ВАЖНО: Порядок генерации - МРЦ, Легковые, Мотошины
+# ВАЖНО: Порядок генерации - МРЦ, Легковые, Мотошины, Диски
 
 # 1.1 МРЦ (ПЕРВЫМ!)
 echo "  → Генерация файла МРЦ..."
@@ -60,6 +61,18 @@ fi
 
 MOTO_LINES=$(wc -l < "$TEMP_DIR/$FILENAME_MOTO")
 echo "  ✅ Файл создан: $FILENAME_MOTO ($MOTO_LINES строк)"
+
+# 1.4 Диски
+echo "  → Генерация файла дисков..."
+go run cmd/export-bitrix-prices-rims/main.go --output-dir="$TEMP_DIR"
+
+if [ ! -f "$TEMP_DIR/$FILENAME_RIMS" ]; then
+    echo "❌ Ошибка: файл дисков не создан!"
+    exit 1
+fi
+
+RIMS_LINES=$(wc -l < "$TEMP_DIR/$FILENAME_RIMS")
+echo "  ✅ Файл создан: $FILENAME_RIMS ($RIMS_LINES строк)"
 echo ""
 
 # 2. Показываем содержимое (первые 5 строк каждого файла)
@@ -74,12 +87,16 @@ echo ""
 echo "--- Мотошины (первые 5 строк) ---"
 head -5 "$TEMP_DIR/$FILENAME_MOTO"
 echo ""
+echo "--- Диски (первые 5 строк) ---"
+head -5 "$TEMP_DIR/$FILENAME_RIMS"
+echo ""
 
 # 3. Копируем файлы на Desktop для просмотра
 echo "📋 Копирование файлов на Desktop для проверки..."
 cp "$TEMP_DIR/$FILENAME_MRC" ~/Desktop/
 cp "$TEMP_DIR/$FILENAME_TYRES" ~/Desktop/
 cp "$TEMP_DIR/$FILENAME_MOTO" ~/Desktop/
+cp "$TEMP_DIR/$FILENAME_RIMS" ~/Desktop/
 echo "✅ Файлы скопированы на Desktop"
 echo ""
 
@@ -89,6 +106,7 @@ echo "📊 Созданные файлы:"
 echo "   • МРЦ: $FILENAME_MRC ($((MRC_LINES-1)) позиций)"
 echo "   • Легковые шины: $FILENAME_TYRES ($((TYRES_LINES-1)) позиций)"
 echo "   • Мотошины: $FILENAME_MOTO ($((MOTO_LINES-1)) позиций)"
+echo "   • Диски: $FILENAME_RIMS ($((RIMS_LINES-1)) позиций)"
 echo "📁 Файлы доступны на Desktop для проверки"
 echo "🕐 Время завершения: $(date '+%Y-%m-%d %H:%M:%S %Z')"
 echo "================================================================"

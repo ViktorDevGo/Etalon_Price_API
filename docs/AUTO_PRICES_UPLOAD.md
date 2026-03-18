@@ -27,6 +27,12 @@
    - Формат: 5 колонок (IE_XML_ID, IP_PROP171, QUANTITY, CV_PRICE_1, CV_CURRENCY_1)
    - **Особенность:** Обновляет `isimport = 1`
 
+4️⃣ **Переоценка_диски_YYYYMMDD.csv** - переоценка дисков
+   - Источник: `rims_prices_stock` + `nomenclature_rims`
+   - Фильтр: БЕЗ фильтра по типу (все диски)
+   - Формат: 5 колонок (IE_XML_ID, IP_PROP171, QUANTITY, CV_PRICE_1, CV_CURRENCY_1)
+   - **Особенность:** Обновляет `isimport = 1`
+
 ## Логика генерации
 
 ### Общие правила
@@ -148,10 +154,14 @@ go run cmd/export-bitrix-prices/main.go -output-dir=/Users/viktor/Desktop
 # Мотошины
 go run cmd/export-bitrix-prices-moto/main.go -output-dir=/Users/viktor/Desktop
 
+# Диски
+go run cmd/export-bitrix-prices-rims/main.go -output-dir=/Users/viktor/Desktop
+
 # Тестовый режим (limit 10)
 go run cmd/export-bitrix-prices-mrc/main.go -output-dir=/Users/viktor/Desktop -limit=10
 go run cmd/export-bitrix-prices/main.go -output-dir=/Users/viktor/Desktop -limit=10
 go run cmd/export-bitrix-prices-moto/main.go -output-dir=/Users/viktor/Desktop -limit=10
+go run cmd/export-bitrix-prices-rims/main.go -output-dir=/Users/viktor/Desktop -limit=10
 ```
 
 ### Проверка расписания
@@ -177,6 +187,12 @@ Cron выражение: `0 10 * * *`
 - Всего в номенклатуре: 279
 - С остатком > 0: 80
 - Экспортируется (stock > 4, isimport = 0): ~46
+- **Обновляет isimport = 1**
+
+### Диски
+- Всего в номенклатуре: 99,995
+- С остатком > 0: ~20,000
+- Экспортируется (stock > 4, isimport = 0): ~15,000
 - **Обновляет isimport = 1**
 
 ## Troubleshooting
