@@ -24,10 +24,7 @@ func main() {
 	// Load .env file if exists
 	_ = godotenv.Load()
 
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
+	cfg := config.Load()
 
 	// Setup logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -35,7 +32,7 @@ func main() {
 	}))
 
 	// Connect to database
-	pool, err := pgxpool.New(context.Background(), cfg.Database.DSN)
+	pool, err := pgxpool.New(context.Background(), cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -48,15 +45,15 @@ func main() {
 
 	// Create email client
 	var emailClient *email.Client
-	if cfg.Email.Enabled {
+	if cfg.EmailEnabled {
 		emailClient = email.NewClient(email.Config{
-			SMTPHost: cfg.Email.SMTPHost,
-			SMTPPort: cfg.Email.SMTPPort,
-			Username: cfg.Email.Username,
-			Password: cfg.Email.Password,
-			From:     cfg.Email.From,
+			SMTPHost: cfg.EmailSMTPHost,
+			SMTPPort: cfg.EmailSMTPPort,
+			Username: cfg.EmailUsername,
+			Password: cfg.EmailPassword,
+			From:     cfg.EmailFrom,
 		}, logger)
-		logger.Info("Email notifications enabled", "to", cfg.Email.NotificationTo)
+		logger.Info("Email notifications enabled", "to", cfg.EmailNotificationTo)
 	} else {
 		logger.Info("Email notifications disabled")
 	}
@@ -143,7 +140,7 @@ func printStats(result *service.SyncResult) {
 }
 
 func sendEmailNotification(emailClient *email.Client, cfg *config.Config, result *service.SyncResult, logger *slog.Logger) {
-	if emailClient == nil || !cfg.Email.Enabled {
+	if emailClient == nil || !cfg.EmailEnabled {
 		return
 	}
 
@@ -163,8 +160,8 @@ func sendEmailNotification(emailClient *email.Client, cfg *config.Config, result
 	msg := email.BuildNomenclatureSyncHTMLMessage(emailResult)
 
 	// Override recipient if configured
-	if cfg.Email.NotificationTo != "" {
-		msg.To = []string{cfg.Email.NotificationTo}
+	if cfg.EmailNotificationTo != "" {
+		msg.To = []string{cfg.EmailNotificationTo}
 	}
 
 	// Send email

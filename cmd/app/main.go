@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,16 +24,13 @@ func main() {
 	_ = godotenv.Load()
 
 	// Load configuration
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
+	cfg := config.Load()
 
 	// Initialize logger
-	appLogger := logger.New(cfg.App.LogLevel)
+	appLogger := logger.New(cfg.LogLevel)
 	appLogger.Info("Starting Etalon Price API server",
-		"env", cfg.App.Env,
-		"port", cfg.HTTP.Port,
+		"env", cfg.AppEnv,
+		"port", cfg.HTTPPort,
 	)
 
 	// Create context
@@ -42,7 +38,7 @@ func main() {
 
 	// Initialize database
 	db, err := postgres.New(ctx, postgres.Config{
-		DSN:    cfg.Database.DSN,
+		DSN:    cfg.DatabaseDSN,
 		Logger: logger.WithComponent(appLogger, "database"),
 	})
 	if err != nil {
@@ -58,12 +54,12 @@ func main() {
 
 	// Register 4tochki provider
 	fourtochkiProvider := fourtochki.NewProvider(fourtochki.ProviderConfig{
-		WSDLURL:    cfg.Fourtochki.WSDLURL,
-		Login:      cfg.Fourtochki.Login,
-		Password:   cfg.Fourtochki.Password,
-		Timeout:    cfg.Fourtochki.Timeout,
-		RetryCount: cfg.Fourtochki.RetryCount,
-		RetryDelay: cfg.Fourtochki.RetryDelay,
+		WSDLURL:    cfg.FourtochkiWSDLURL,
+		Login:      cfg.FourtochkiLogin,
+		Password:   cfg.FourtochkiPassword,
+		Timeout:    cfg.FourtochkiTimeout,
+		RetryCount: cfg.FourtochkiRetryCount,
+		RetryDelay: cfg.FourtochkiRetryDelay,
 		Logger:     logger.WithProvider(appLogger, "4tochki"),
 	})
 
@@ -83,7 +79,7 @@ func main() {
 
 	// Initialize HTTP server
 	server := httpserver.New(httpserver.Config{
-		Port:        cfg.HTTP.Port,
+		Port:        cfg.HTTPPort,
 		SyncService: syncService,
 		DB:          db,
 		Registry:    registry,
@@ -92,7 +88,7 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		appLogger.Info("HTTP server starting", "port", cfg.HTTP.Port)
+		appLogger.Info("HTTP server starting", "port", cfg.HTTPPort)
 		if err := server.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			appLogger.Error("HTTP server error", "error", err)
 			os.Exit(1)

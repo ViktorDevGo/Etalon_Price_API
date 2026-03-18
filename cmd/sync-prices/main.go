@@ -25,10 +25,7 @@ func main() {
 	// Load .env file if exists
 	_ = godotenv.Load()
 
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
+	cfg := config.Load()
 
 	// Setup logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -36,7 +33,7 @@ func main() {
 	}))
 
 	// Connect to database
-	pool, err := pgxpool.New(context.Background(), cfg.Database.DSN)
+	pool, err := pgxpool.New(context.Background(), cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -49,12 +46,12 @@ func main() {
 
 	// Create 4tochki API client
 	fourtochkiClient := fourtochki.NewClient(fourtochki.ClientConfig{
-		WSDLURL:    cfg.Fourtochki.WSDLURL,
-		Login:      cfg.Fourtochki.Login,
-		Password:   cfg.Fourtochki.Password,
-		Timeout:    cfg.Fourtochki.Timeout,
-		RetryCount: cfg.Fourtochki.RetryCount,
-		RetryDelay: cfg.Fourtochki.RetryDelay,
+		WSDLURL:    cfg.FourtochkiWSDLURL,
+		Login:      cfg.FourtochkiLogin,
+		Password:   cfg.FourtochkiPassword,
+		Timeout:    cfg.FourtochkiTimeout,
+		RetryCount: cfg.FourtochkiRetryCount,
+		RetryDelay: cfg.FourtochkiRetryDelay,
 		Logger:     logger,
 	})
 

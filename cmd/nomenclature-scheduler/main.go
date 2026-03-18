@@ -20,10 +20,7 @@ func main() {
 	// Load .env file if exists
 	_ = godotenv.Load()
 
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
+	cfg := config.Load()
 
 	// Setup logger
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -31,7 +28,7 @@ func main() {
 	}))
 
 	// Connect to database
-	pool, err := pgxpool.New(context.Background(), cfg.Database.DSN)
+	pool, err := pgxpool.New(context.Background(), cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
