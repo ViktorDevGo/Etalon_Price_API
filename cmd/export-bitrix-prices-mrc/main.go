@@ -123,11 +123,12 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
+	writer.Comma = ',' // Используем запятую как разделитель
 	defer writer.Flush()
 
-	// Заголовок (5 колонок)
+	// Заголовок (4 колонки)
 	header := []string{
-		"IE_XML_ID", "IP_PROP171", "QUANTITY", "CV_PRICE_1", "CV_CURRENCY_1",
+		"IE_XML_ID", "CP_QUANTITY", "CV_PRICE_1", "CV_CURRENCY_1",
 	}
 
 	if err := writer.Write(header); err != nil {
@@ -137,13 +138,10 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 	fmt.Println("✅ Логика экспорта:")
 	fmt.Println("  ✓ Источник: tyres_prices_stock + nomenclature_tyres + mrc_etalon")
 	fmt.Println("  ✓ Фильтр: tiretype = 'Легковая' AND SUM(stock) > 4 AND MIN(isimport) = 0")
-	fmt.Println("  ✓ QUANTITY: SUM(stock) по CAE")
+	fmt.Println("  ✓ CP_QUANTITY: SUM(stock) по CAE")
 	fmt.Println("  ✓ CV_PRICE_1:")
 	fmt.Println("      - CEIL(MRC) - если есть совпадение с mrc_etalon.article")
 	fmt.Println("      - CEIL(MIN(price) * 1.12) - если нет МРЦ")
-	fmt.Println("  ✓ IP_PROP171:")
-	fmt.Println("      - 'Доставим курьером Сегодня и позже' - если есть Запаска/Форточки/Бигмашин")
-	fmt.Println("      - 'Доставим курьером Завтра и позже' - если только Группа Бринекс/Северавто")
 	fmt.Println("  ⚠️  ВАЖНО: НЕ обновляет isimport (файл для информации)")
 	fmt.Println()
 	fmt.Println("Экспорт данных...")
@@ -164,24 +162,15 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 			log.Fatal(err)
 		}
 
-		record := make([]string, 5)
+		record := make([]string, 4)
 
 		// 1. IE_XML_ID (CAE)
 		record[0] = cae
 
-		// 2. IP_PROP171 - срок доставки
-		if hasFastProvider > 0 {
-			// Есть быстрые поставщики (Запаска/Форточки/Бигмашин)
-			record[1] = "Доставим курьером Сегодня и позже"
-		} else {
-			// Только медленные поставщики (Группа Бринекс/Северавто)
-			record[1] = "Доставим курьером Завтра и позже"
-		}
+		// 2. CP_QUANTITY - суммарный остаток
+		record[1] = fmt.Sprintf("%d", totalStock)
 
-		// 3. QUANTITY - суммарный остаток
-		record[2] = fmt.Sprintf("%d", totalStock)
-
-		// 4. CV_PRICE_1 - цена (МРЦ если есть, иначе обычная с наценкой 12%)
+		// 3. CV_PRICE_1 - цена (МРЦ если есть, иначе обычная с наценкой 12%)
 		var finalPrice int
 		if mrcPrice != nil && *mrcPrice > 0 {
 			// Есть МРЦ - используем её с округлением вверх
@@ -194,10 +183,10 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 			finalPrice = int(math.Ceil(priceWithMarkup))
 			countWithoutMRC++
 		}
-		record[3] = fmt.Sprintf("%d", finalPrice)
+		record[2] = fmt.Sprintf("%d", finalPrice)
 
-		// 5. CV_CURRENCY_1 - валюта
-		record[4] = "RUB"
+		// 4. CV_CURRENCY_1 - валюта
+		record[3] = "RUB"
 
 		if err := writer.Write(record); err != nil {
 			log.Fatal(err)

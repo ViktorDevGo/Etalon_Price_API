@@ -160,7 +160,25 @@
       "Bash(export EMAIL_USERNAME=\"admin@etalon-shina.ru\")",
       "Bash(export EMAIL_PASSWORD=\"S69Y1ypojVLCZHO8\")",
       "Bash(export EMAIL_NOTIFICATION_TO=\"v.boyarkin@etalon-shina.ru\")",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(docker exec:*)",
+      "Bash(/tmp/check_timeweb_logs.sh:*)",
+      "Bash(__NEW_LINE_ecc3f0a7102a3278__ chmod +x /tmp/check_timeweb_logs.sh)",
+      "Bash(bash /tmp/check_timeweb_logs.sh)",
+      "Bash(/tmp/generate_test_exports.sh:*)",
+      "Bash(__NEW_LINE_f3f3a4bbcf357c99__ chmod +x /tmp/generate_test_exports.sh)",
+      "Bash(bash /tmp/generate_test_exports.sh)",
+      "Bash(tail -1 __NEW_LINE_ff31c2773276d573__ echo \"\" echo \"Содержимое файла:\" cat /Users/viktor/Desktop/Переоценка_шины_*.csv)",
+      "Bash(/Users/viktor/Desktop/Переоценка_шины_тест.csv:*)",
+      "Bash(__NEW_LINE_51f72295ef9c69e2__ echo \"✅ Тестовый файл создан: Переоценка_шины_тест.csv\")",
+      "Bash(/Users/viktor/Desktop/Переоценка_TEST_вариант1_запятая.csv:*)",
+      "Bash(__NEW_LINE_6cc9e23f1a6747a2__ cat)",
+      "Bash(/Users/viktor/Desktop/Переоценка_TEST_вариант2_точка_запятая.csv:*)",
+      "Bash(/Users/viktor/Desktop/Переоценка_TEST_вариант3_с_кавычками.csv:*)",
+      "Bash(__NEW_LINE_6cc9e23f1a6747a2__ echo \"✅ Создано 3 тестовых варианта:\")",
+      "Bash(/Users/viktor/Desktop/Переоценка_шины_ФИНАЛ.csv:*)",
+      "Bash(__NEW_LINE_bd1ecd8241c5fe13__ echo \"✅ Финальный тестовый файл создан: Переоценка_шины_ФИНАЛ.csv\")",
+      "Bash(DB_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\" go run:*)"
     ]
   }
 }

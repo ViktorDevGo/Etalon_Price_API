@@ -121,11 +121,12 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
+	writer.Comma = ',' // Используем запятую как разделитель
 	defer writer.Flush()
 
-	// Заголовок (5 колонок)
+	// Заголовок (4 колонки)
 	header := []string{
-		"IE_XML_ID", "IP_PROP171", "QUANTITY", "CV_PRICE_1", "CV_CURRENCY_1",
+		"IE_XML_ID", "CP_QUANTITY", "CV_PRICE_1", "CV_CURRENCY_1",
 	}
 
 	if err := writer.Write(header); err != nil {
@@ -135,11 +136,8 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 	fmt.Println("✅ Логика экспорта:")
 	fmt.Println("  ✓ Источник: tyres_prices_stock + nomenclature_tyres")
 	fmt.Println("  ✓ Фильтр: tiretype = 'Мотошина' AND SUM(stock) > 4 AND MIN(isimport) = 0")
-	fmt.Println("  ✓ QUANTITY: SUM(stock) по CAE")
+	fmt.Println("  ✓ CP_QUANTITY: SUM(stock) по CAE")
 	fmt.Println("  ✓ CV_PRICE_1: CEIL(MIN(price) * 1.12) - округление вверх")
-	fmt.Println("  ✓ IP_PROP171:")
-	fmt.Println("      - 'Доставим курьером Сегодня и позже' - если есть Запаска/Форточки/Бигмашин")
-	fmt.Println("      - 'Доставим курьером Завтра и позже' - если только Группа Бринекс/Северавто")
 	fmt.Println()
 	fmt.Println("Экспорт данных...")
 
@@ -159,32 +157,23 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 
 		exportedCAEs = append(exportedCAEs, cae)
 
-		record := make([]string, 5)
+		record := make([]string, 4)
 
 		// 1. IE_XML_ID (CAE)
 		record[0] = cae
 
-		// 2. IP_PROP171 - срок доставки
-		if hasFastProvider > 0 {
-			// Есть быстрые поставщики (Запаска/Форточки/Бигмашин)
-			record[1] = "Доставим курьером Сегодня и позже"
-		} else {
-			// Только медленные поставщики (Группа Бринекс/Северавто)
-			record[1] = "Доставим курьером Завтра и позже"
-		}
+		// 2. CP_QUANTITY - суммарный остаток
+		record[1] = fmt.Sprintf("%d", totalStock)
 
-		// 3. QUANTITY - суммарный остаток
-		record[2] = fmt.Sprintf("%d", totalStock)
-
-		// 4. CV_PRICE_1 - минимальная цена + 12%, округление вверх
+		// 3. CV_PRICE_1 - минимальная цена + 12%, округление вверх
 		priceRub := float64(minPrice)
 		priceWithMarkup := priceRub * 1.12
 		// Округление вверх до целого числа
 		priceRounded := int(math.Ceil(priceWithMarkup))
-		record[3] = fmt.Sprintf("%d", priceRounded)
+		record[2] = fmt.Sprintf("%d", priceRounded)
 
-		// 5. CV_CURRENCY_1 - валюта
-		record[4] = "RUB"
+		// 4. CV_CURRENCY_1 - валюта
+		record[3] = "RUB"
 
 		if err := writer.Write(record); err != nil {
 			log.Fatal(err)

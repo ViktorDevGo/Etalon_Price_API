@@ -1,11 +1,11 @@
 #!/bin/bash
 set -e
 
-# Конфигурация
-REMOTE_HOST="147.45.215.76"
-REMOTE_USER="root"
-REMOTE_PASSWORD="k7MF4xi99Ty^^T"
-REMOTE_PATH="/home/bitrix/www/upload/1c_catalog"
+# Конфигурация (из переменных окружения или значения по умолчанию)
+REMOTE_HOST="${BITRIX_REMOTE_HOST:-147.45.215.76}"
+REMOTE_USER="${BITRIX_REMOTE_USER:-root}"
+REMOTE_PASSWORD="${BITRIX_REMOTE_PASSWORD:-k7MF4xi99Ty^^T}"
+REMOTE_PATH="${BITRIX_REMOTE_PATH:-/home/bitrix/www/upload/1c_catalog}"
 TEMP_DIR="/tmp/bitrix_export"
 DATE_STR=$(date +%Y%m%d)
 FILENAME_MRC="Переоценка_МРЦ_${DATE_STR}.csv"

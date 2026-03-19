@@ -18,7 +18,14 @@ func New(level string) *slog.Logger {
 		},
 	}
 
-	handler := slog.NewJSONHandler(os.Stdout, opts)
+	// Use TextHandler for development, JSONHandler for production
+	var handler slog.Handler
+	if os.Getenv("APP_ENV") == "production" {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	}
+
 	logger := slog.New(handler)
 
 	return logger

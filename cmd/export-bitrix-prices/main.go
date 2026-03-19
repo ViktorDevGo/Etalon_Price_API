@@ -121,11 +121,12 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 	defer file.Close()
 
 	writer := csv.NewWriter(file)
+	writer.Comma = ',' // Используем запятую как разделитель
 	defer writer.Flush()
 
 	// Заголовок (5 колонок)
 	header := []string{
-		"IE_XML_ID", "IP_PROP171", "QUANTITY", "CV_PRICE_1", "CV_CURRENCY_1",
+		"IE_XML_ID", "IP_PROP171", "CP_QUANTITY", "CV_PRICE_1", "CV_CURRENCY_1",
 	}
 
 	if err := writer.Write(header); err != nil {
