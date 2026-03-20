@@ -18,7 +18,7 @@ COPY . .
 # Build all binaries
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/api ./cmd/app
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/nomenclature-scheduler ./cmd/nomenclature-scheduler
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/prices-scheduler ./cmd/sync-prices
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-prices ./cmd/sync-prices
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/severavto-scheduler ./cmd/severavto-scheduler
 
 # Build export binaries for prices-upload
@@ -82,9 +82,10 @@ SCRIPT
 
 RUN chmod +x /app/upload_prices.sh
 
-# Create crontab for prices-upload (12:00 Irkutsk = 07:00 Moscow)
+# Create crontab for prices-upload and sync-prices
 RUN mkdir -p /etc/crontabs && \
-    echo "0 7 * * * /app/upload_prices.sh >> /var/log/prices-upload.log 2>&1" > /etc/crontabs/root
+    echo "0 7 * * * /app/upload_prices.sh >> /var/log/prices-upload.log 2>&1" > /etc/crontabs/root && \
+    echo "0 */3 * * * /app/sync-prices -type=all >> /var/log/sync-prices.log 2>&1" >> /etc/crontabs/root
 
 # Create supervisord config
 RUN cat > /etc/supervisord.conf <<'SUPERVISOR'
@@ -108,13 +109,6 @@ autorestart=true
 stdout_logfile=/var/log/nomenclature.log
 stderr_logfile=/var/log/nomenclature.err.log
 
-[program:prices-scheduler]
-command=/app/prices-scheduler
-autostart=true
-autorestart=true
-stdout_logfile=/var/log/prices.log
-stderr_logfile=/var/log/prices.err.log
-
 [program:severavto-scheduler]
 command=/app/severavto-scheduler
 autostart=true
@@ -134,7 +128,7 @@ SUPERVISOR
 RUN mkdir -p /var/log && \
     touch /var/log/api.log \
           /var/log/nomenclature.log \
-          /var/log/prices.log \
+          /var/log/sync-prices.log \
           /var/log/severavto.log \
           /var/log/prices-upload.log \
           /var/log/cron.log
