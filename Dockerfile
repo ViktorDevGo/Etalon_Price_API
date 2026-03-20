@@ -149,9 +149,9 @@ RUN mkdir -p /var/log && \
 # Expose API port
 EXPOSE 8080
 
-# Health check
+# Health check (wget without --spider to use GET instead of HEAD)
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8080/healthz || exit 1
+    CMD wget --quiet --tries=1 -O /dev/null http://localhost:8080/healthz || exit 1
 
 # Start supervisord
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
