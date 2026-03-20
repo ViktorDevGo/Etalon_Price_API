@@ -86,13 +86,20 @@ SCRIPT
 
 RUN chmod +x /app/upload_prices.sh
 
-# Create crontab for prices-upload and sync-prices
+# Create crontab for one-time scheduled commands (v3 - 2026-03-20)
+# - upload_prices.sh: daily at 07:00 MSK (upload price files to 1C-Bitrix)
+# - sync-prices: every 3 hours (sync prices from suppliers)
 RUN mkdir -p /etc/crontabs && \
-    echo "0 7 * * * /app/upload_prices.sh >> /var/log/prices-upload.log 2>&1" > /etc/crontabs/root && \
+    echo "# Etalon Price API cron jobs v3" > /etc/crontabs/root && \
+    echo "0 7 * * * /app/upload_prices.sh >> /var/log/prices-upload.log 2>&1" >> /etc/crontabs/root && \
     echo "0 */3 * * * /app/sync-prices -type=all >> /var/log/sync-prices.log 2>&1" >> /etc/crontabs/root
 
-# Create supervisord config (v2 - fixed: removed prices-scheduler, using cron)
+# Create supervisord config (v3 - cache bust 2026-03-20)
 RUN cat > /etc/supervisord.conf <<'SUPERVISOR'
+; Version 3 - 2026-03-20 - Fixed: removed prices-scheduler from supervisord
+; prices-scheduler removed - now runs via cron every 3 hours
+; Only daemon processes should be here: api, nomenclature-scheduler, severavto-scheduler
+
 [supervisord]
 nodaemon=true
 user=root
