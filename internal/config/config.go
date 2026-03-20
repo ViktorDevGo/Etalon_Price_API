@@ -68,7 +68,7 @@ func Load() *Config {
 		FourtochkiBatchDelay: getEnvAsDuration("FOURTOCHKI_BATCH_DELAY", 1*time.Second),
 
 		// Severavto
-		SeveravtoBaseURL: getEnv("SEVERAVTO_BASE_URL", "http://webmim.svrauto.ru"),
+		SeveravtoBaseURL: getEnv("SEVERAVTO_BASE_URL", "https://webmim.svrauto.ru"),
 		SeveravtoAPIKey:  getEnv("SEVERAVTO_API_KEY", ""),
 		SeveravtoTimeout: getEnv("SEVERAVTO_TIMEOUT", "60s"),
 

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"github.com/prokoleso/etalon-price-api/internal/config"
 	"github.com/prokoleso/etalon-price-api/internal/email"
 	"github.com/prokoleso/etalon-price-api/internal/providers/severavto"
@@ -19,6 +20,9 @@ import (
 )
 
 func main() {
+	// Load .env file if exists
+	_ = godotenv.Load()
+
 	// Load configuration
 	cfg := config.Load()
 

@@ -4,8 +4,8 @@ import "encoding/xml"
 
 // CatalogXML представляет корневой элемент XML ответа от API Северавто
 type CatalogXML struct {
-	XMLName     xml.Name        `xml:"CATALOG"`
-	Commodities CommoditiesXML  `xml:"COMMODITIES"` // Категории товаров
+	XMLName     xml.Name         `xml:"CATALOG"`
+	Commodities []CommoditiesXML `xml:"COMMODITIES"` // Категории товаров (массив!)
 }
 
 // CommoditiesXML представляет категорию товаров (Шины/Диски)
@@ -26,7 +26,7 @@ type Description struct {
 // Commodity представляет один товар с остатками (одна запись = товар на одной территории)
 type Commodity struct {
 	// Идентификаторы
-	ID        string `xml:"NNCOMMODIF"` // Уникальный ID товара (RN, commodityId)
+	ID        string `xml:"NNOMMODIF"` // Уникальный ID товара (RN, commodityId)
 	ModifName string `xml:"SMODIFNAME"` // Наименование товара
 
 	// Основная информация

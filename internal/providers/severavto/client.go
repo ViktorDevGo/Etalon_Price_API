@@ -98,13 +98,15 @@ func (c *Client) fetchXML(
 	}
 
 	// 2. Построение URL (новый API v1)
-	// Формат: http://webmim.svrauto.ru/api/v1/catalog/unload?access-token={API_KEY}&format=xml
-	// ВАЖНО: НЕ HTTPS! API работает только по HTTP
+	// Формат: https://webmim.svrauto.ru/api/v1/catalog/unload?access-token={API_KEY}&format=xml
+	// ВАЖНО: API работает по HTTPS (перенаправляет с HTTP на HTTPS)
 	url := fmt.Sprintf("%s/api/v1/catalog/unload?access-token=%s&format=xml",
 		c.baseURL, c.apiKey)
 
 	logger.Info("Fetching XML from Severavto API",
-		"url", c.baseURL+"/api/v1/catalog/unload?access-token=***&format=xml")
+		"url", c.baseURL+"/api/v1/catalog/unload?access-token=***&format=xml",
+		"base_url", c.baseURL,
+		"api_key_length", len(c.apiKey))
 
 	// 3. Создание HTTP запроса
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -157,12 +159,36 @@ func (c *Client) fetchXML(
 		return nil, fmt.Errorf("xml decode: %w", err)
 	}
 
-	result := &catalog.Commodities
+	// 10. Фильтрация нужной категории по productType
+	// tyre -> TYRE (ID=1), disc -> DISK (ID=2)
+	var targetName string
+	switch productType {
+	case "tyre":
+		targetName = "TYRE"
+	case "disc":
+		targetName = "DISK"
+	default:
+		return nil, fmt.Errorf("unknown product type: %s", productType)
+	}
+
+	var result *CommoditiesXML
+	for i := range catalog.Commodities {
+		if catalog.Commodities[i].Name == targetName {
+			result = &catalog.Commodities[i]
+			break
+		}
+	}
+
+	if result == nil {
+		return nil, fmt.Errorf("category %s not found in response", targetName)
+	}
+
 	logger.Info("XML parsed successfully",
 		"category", result.Value,
+		"target_name", targetName,
 		"commodities_count", len(result.Commodities))
 
-	// 10. Сохранение Last-Modified для кэширования
+	// 11. Сохранение Last-Modified для кэширования
 	if lm := resp.Header.Get("Last-Modified"); lm != "" {
 		if parsed, err := time.Parse(http.TimeFormat, lm); err == nil {
 			*lastModified = parsed
@@ -170,7 +196,7 @@ func (c *Client) fetchXML(
 		}
 	}
 
-	// 11. Обновление времени последнего запроса
+	// 12. Обновление времени последнего запроса
 	*lastFetch = time.Now()
 
 	return result, nil

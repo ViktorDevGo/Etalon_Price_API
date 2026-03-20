@@ -500,16 +500,18 @@ func (r *PricesStockRepository) UpsertSeveravtoTyresPricesStock(ctx context.Cont
 		return 0, 0, fmt.Errorf("failed to copy data: %w", err)
 	}
 
-	// Merge from temp table to main table
+	// Merge from temp table to main table (with deduplication)
+	// Use DISTINCT ON to handle duplicates in source data
 	_, err = tx.Exec(ctx, `
 		INSERT INTO tyres_prices_stock_severavto (
 			commodity_id, territory_name, price, price_delayed, price_rrp,
 			stock, place_type, is_sellout, provider
 		)
-		SELECT
+		SELECT DISTINCT ON (commodity_id, territory_name, provider)
 			commodity_id, territory_name, price, price_delayed, price_rrp,
 			stock, place_type, is_sellout, provider
 		FROM temp_severavto_tyres_prices
+		ORDER BY commodity_id, territory_name, provider, price ASC
 		ON CONFLICT (commodity_id, territory_name, provider) DO UPDATE SET
 			price = EXCLUDED.price,
 			price_delayed = EXCLUDED.price_delayed,
@@ -639,16 +641,18 @@ func (r *PricesStockRepository) UpsertSeveravtoRimsPricesStock(ctx context.Conte
 		return 0, 0, fmt.Errorf("failed to copy data: %w", err)
 	}
 
-	// Merge from temp table to main table
+	// Merge from temp table to main table (with deduplication)
+	// Use DISTINCT ON to handle duplicates in source data
 	_, err = tx.Exec(ctx, `
 		INSERT INTO rims_prices_stock_severavto (
 			commodity_id, territory_name, price, price_delayed, price_rrp,
 			stock, place_type, is_sellout, provider
 		)
-		SELECT
+		SELECT DISTINCT ON (commodity_id, territory_name, provider)
 			commodity_id, territory_name, price, price_delayed, price_rrp,
 			stock, place_type, is_sellout, provider
 		FROM temp_severavto_rims_prices
+		ORDER BY commodity_id, territory_name, provider, price ASC
 		ON CONFLICT (commodity_id, territory_name, provider) DO UPDATE SET
 			price = EXCLUDED.price,
 			price_delayed = EXCLUDED.price_delayed,
