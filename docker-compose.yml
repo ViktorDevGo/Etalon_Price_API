@@ -124,6 +124,9 @@ services:
       # Severavto API (needed for export commands)
       - SEVERAVTO_BASE_URL=${SEVERAVTO_BASE_URL}
       - SEVERAVTO_API_KEY=${SEVERAVTO_API_KEY}
+    cap_add:
+      - SYS_NICE
+      - SYS_RESOURCE
     restart: unless-stopped
 
   # Severavto scheduler (every 3 hours: tyres at :00, rims at :15)

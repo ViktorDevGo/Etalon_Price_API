@@ -27,9 +27,9 @@ RUN go build -o export-bitrix-prices-rims ./cmd/export-bitrix-prices-rims
 FROM alpine:latest
 
 # Install runtime dependencies
+# Note: busybox crond is already included in alpine, no need for dcron
 RUN apk add --no-cache \
     bash \
-    dcron \
     openssh-client \
     sshpass \
     tzdata \
@@ -167,7 +167,8 @@ echo "🚀 Starting cron daemon..."
 echo ""
 
 # Start cron in foreground with debug level
-exec crond -f -l 2
+# -f = foreground, -l 2 = log level, -L = disable setpgid
+exec crond -f -l 2 -L /dev/stdout
 STARTSCRIPT
 
 RUN chmod +x /app/start.sh
