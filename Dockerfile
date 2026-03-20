@@ -3,6 +3,10 @@
 # ================================
 FROM golang:1.24-alpine AS builder
 
+# Force rebuild by breaking cache
+ARG BUILD_DATE=unknown
+RUN echo "Build date: ${BUILD_DATE}"
+
 WORKDIR /build
 
 # Install dependencies
@@ -87,7 +91,7 @@ RUN mkdir -p /etc/crontabs && \
     echo "0 7 * * * /app/upload_prices.sh >> /var/log/prices-upload.log 2>&1" > /etc/crontabs/root && \
     echo "0 */3 * * * /app/sync-prices -type=all >> /var/log/sync-prices.log 2>&1" >> /etc/crontabs/root
 
-# Create supervisord config
+# Create supervisord config (v2 - fixed: removed prices-scheduler, using cron)
 RUN cat > /etc/supervisord.conf <<'SUPERVISOR'
 [supervisord]
 nodaemon=true
