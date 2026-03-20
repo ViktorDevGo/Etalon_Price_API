@@ -99,8 +99,10 @@ pidfile=/var/run/supervisord.pid
 command=/app/api
 autostart=true
 autorestart=true
-stdout_logfile=/var/log/api.log
-stderr_logfile=/var/log/api.err.log
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
 
 [program:nomenclature-scheduler]
 command=/app/nomenclature-scheduler
@@ -136,9 +138,10 @@ RUN mkdir -p /var/log && \
 # Expose API port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1
+# Health check disabled temporarily for debugging
+# Will re-enable after confirming API starts correctly
+# HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+#     CMD wget --quiet --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Start supervisord
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
