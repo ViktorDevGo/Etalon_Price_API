@@ -29,6 +29,7 @@ FROM alpine:latest
 # Install runtime dependencies
 RUN apk add --no-cache \
     bash \
+    dcron \
     openssh-client \
     sshpass \
     tzdata \
@@ -133,6 +134,8 @@ RUN touch /var/log/cron.log
 # Create startup script
 RUN cat > /app/start.sh <<'STARTSCRIPT'
 #!/bin/bash
+set -e
+
 echo "================================================================"
 echo "Prices Upload Scheduler"
 echo "================================================================"
@@ -142,8 +145,29 @@ echo "Schedule: Daily at 12:00 Irkutsk time"
 echo "================================================================"
 echo ""
 
-# Start cron in foreground
-crond -f -l 2
+# Verify cron is installed
+if ! command -v crond &> /dev/null; then
+    echo "❌ ERROR: crond not found!"
+    exit 1
+fi
+
+# Verify crontab exists
+if [ ! -f /etc/crontabs/root ]; then
+    echo "❌ ERROR: /etc/crontabs/root not found!"
+    exit 1
+fi
+
+echo "✅ Cron daemon: $(which crond)"
+echo "✅ Crontab: /etc/crontabs/root"
+echo ""
+echo "📋 Cron schedule:"
+cat /etc/crontabs/root
+echo ""
+echo "🚀 Starting cron daemon..."
+echo ""
+
+# Start cron in foreground with debug level
+exec crond -f -l 2
 STARTSCRIPT
 
 RUN chmod +x /app/start.sh
