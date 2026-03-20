@@ -192,7 +192,9 @@
       "Bash(/tmp/check_cae_overlap.go:*)",
       "Bash(/tmp/transform_catalog.go:*)",
       "Bash(DB_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\" go run /tmp/transform_catalog.go)",
-      "Bash(docker-compose.timeweb.yml:*)"
+      "Bash(docker-compose.timeweb.yml:*)",
+      "Bash(Dockerfile.all-in-one:*)",
+      "Bash(docker build:*)"
     ]
   }
 }
