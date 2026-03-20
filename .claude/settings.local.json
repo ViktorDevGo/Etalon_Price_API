@@ -178,7 +178,21 @@
       "Bash(__NEW_LINE_6cc9e23f1a6747a2__ echo \"✅ Создано 3 тестовых варианта:\")",
       "Bash(/Users/viktor/Desktop/Переоценка_шины_ФИНАЛ.csv:*)",
       "Bash(__NEW_LINE_bd1ecd8241c5fe13__ echo \"✅ Финальный тестовый файл создан: Переоценка_шины_ФИНАЛ.csv\")",
-      "Bash(DB_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\" go run:*)"
+      "Bash(DB_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\" go run:*)",
+      "Bash(DATABASE_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\" go run:*)",
+      "Bash(sshpass -p 'k7MF4xi99Ty^^T' ssh -o StrictHostKeyChecking=no root@147.45.215.76 \"ls -lh /home/bitrix/www/upload/1c_catalog/ | grep 20260320\")",
+      "Bash(DB_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\" psql:*)",
+      "Bash(/tmp/check_rims_isimport.go:*)",
+      "Bash(/tmp/check_rims_export.go:*)",
+      "Bash(/tmp/check_cae_match.go:*)",
+      "Bash(/tmp/check_missing_cae.go:*)",
+      "Bash(DB_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\" go run -e \"\npackage main\nimport \\(\"\"context\"\"; \"\"fmt\"\"; \"\"log\"\"; \"\"os\"\"; \"\"github.com/jackc/pgx/v5/pgxpool\"\"; \"\"github.com/joho/godotenv\"\"\\)\nfunc main\\(\\) {\n\t_ = godotenv.Load\\(\\)\n\tpool, _ := pgxpool.New\\(context.Background\\(\\), os.Getenv\\(\"\"DB_DSN\"\"\\)\\)\n\tdefer pool.Close\\(\\)\n\tctx := context.Background\\(\\)\n\t\n\tfmt.Println\\(\"\"📊 Provider в nomenclature_rims:\"\"\\)\n\trows, _ := pool.Query\\(ctx, \\\\`SELECT provider, COUNT\\(*\\) FROM nomenclature_rims GROUP BY provider ORDER BY count DESC\\\\`\\)\n\tdefer rows.Close\\(\\)\n\tfor rows.Next\\(\\) {\n\t\tvar provider string\n\t\tvar count int\n\t\trows.Scan\\(&provider, &count\\)\n\t\tfmt.Printf\\(\"\"  %s: %d записей\\\\n\"\", provider, count\\)\n\t}\n}\n\")",
+      "Bash(/tmp/check_nomenclature_provider.go:*)",
+      "Bash(/tmp/check_nomenclature_structure.go:*)",
+      "Bash(/tmp/check_cae_overlap.go:*)",
+      "Bash(/tmp/transform_catalog.go:*)",
+      "Bash(DB_DSN=\"postgresql://gen_user:Poison-79@c37e696087932476c61fd621.twc1.net:5432/default_db?sslmode=require\" go run /tmp/transform_catalog.go)",
+      "Bash(docker-compose.timeweb.yml:*)"
     ]
   }
 }

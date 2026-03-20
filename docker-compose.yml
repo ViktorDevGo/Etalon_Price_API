@@ -1,11 +1,10 @@
-# Docker Compose для Timeweb Cloud Apps
-# ВАЖНО: Timeweb НЕ поддерживает volumes и локальные контейнеры БД!
-# Используйте управляемую PostgreSQL БД от Timeweb
+# Минимальный docker-compose для Timeweb Cloud
+# Деплоит только основной API сервер
+# Остальные сервисы деплоятся отдельно через Dockerfile
 
 version: '3.8'
 
 services:
-  # Main API service
   api:
     build:
       context: .
@@ -22,11 +21,6 @@ services:
       - FOURTOCHKI_BASE_URL=${FOURTOCHKI_BASE_URL}
       - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
       - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
-      - FOURTOCHKI_BATCH_SIZE=${FOURTOCHKI_BATCH_SIZE:-50}
-      - FOURTOCHKI_TIMEOUT=${FOURTOCHKI_TIMEOUT:-60s}
-      - FOURTOCHKI_RETRY_COUNT=${FOURTOCHKI_RETRY_COUNT:-3}
-      - FOURTOCHKI_RETRY_DELAY=${FOURTOCHKI_RETRY_DELAY:-5s}
-      - FOURTOCHKI_BATCH_DELAY=${FOURTOCHKI_BATCH_DELAY:-2s}
       - EMAIL_ENABLED=${EMAIL_ENABLED:-true}
       - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
       - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
@@ -42,108 +36,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # Nomenclature scheduler (daily at 2:00 AM MSK)
-  nomenclature-scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.nomenclature-scheduler
-    environment:
-      - APP_ENV=${APP_ENV:-production}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DATABASE_DSN=${DATABASE_DSN}
-      - FOURTOCHKI_WSDL_URL=${FOURTOCHKI_WSDL_URL}
-      - FOURTOCHKI_BASE_URL=${FOURTOCHKI_BASE_URL}
-      - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
-      - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
-      - FOURTOCHKI_BATCH_SIZE=${FOURTOCHKI_BATCH_SIZE:-50}
-      - FOURTOCHKI_TIMEOUT=${FOURTOCHKI_TIMEOUT:-60s}
-      - FOURTOCHKI_RETRY_COUNT=${FOURTOCHKI_RETRY_COUNT:-3}
-      - FOURTOCHKI_RETRY_DELAY=${FOURTOCHKI_RETRY_DELAY:-5s}
-      - FOURTOCHKI_BATCH_DELAY=${FOURTOCHKI_BATCH_DELAY:-2s}
-      - EMAIL_ENABLED=${EMAIL_ENABLED:-true}
-      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
-      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
-      - EMAIL_USERNAME=${EMAIL_USERNAME}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - EMAIL_FROM=${EMAIL_FROM}
-      - EMAIL_NOTIFICATION_TO=${EMAIL_NOTIFICATION_TO}
-      - TZ=Europe/Moscow
-    restart: unless-stopped
-
-  # Prices scheduler (every 3 hours)
-  prices-scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.prices-scheduler
-    environment:
-      - APP_ENV=${APP_ENV:-production}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DATABASE_DSN=${DATABASE_DSN}
-      - FOURTOCHKI_WSDL_URL=${FOURTOCHKI_WSDL_URL}
-      - FOURTOCHKI_BASE_URL=${FOURTOCHKI_BASE_URL}
-      - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
-      - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
-      - FOURTOCHKI_BATCH_SIZE=${FOURTOCHKI_BATCH_SIZE:-50}
-      - FOURTOCHKI_TIMEOUT=${FOURTOCHKI_TIMEOUT:-60s}
-      - FOURTOCHKI_RETRY_COUNT=${FOURTOCHKI_RETRY_COUNT:-3}
-      - FOURTOCHKI_RETRY_DELAY=${FOURTOCHKI_RETRY_DELAY:-5s}
-      - FOURTOCHKI_BATCH_DELAY=${FOURTOCHKI_BATCH_DELAY:-2s}
-      - PRICES_CRON_SCHEDULE=${PRICES_CRON_SCHEDULE:-0 */3 * * *}
-      - EMAIL_ENABLED=${EMAIL_ENABLED:-true}
-      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
-      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
-      - EMAIL_USERNAME=${EMAIL_USERNAME}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - EMAIL_FROM=${EMAIL_FROM}
-      - EMAIL_NOTIFICATION_TO=${EMAIL_NOTIFICATION_TO}
-      - TZ=Europe/Moscow
-    restart: unless-stopped
-
-  # Prices upload to 1C-Bitrix (daily at 10:00 IRKT)
-  prices-upload:
-    build:
-      context: .
-      dockerfile: Dockerfile.prices-upload
-    environment:
-      - APP_ENV=${APP_ENV:-production}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DATABASE_DSN=${DATABASE_DSN}
-      - WORK_DIR=/app
-      - TZ=Asia/Irkutsk
-      # Bitrix server credentials
-      - BITRIX_REMOTE_HOST=${BITRIX_REMOTE_HOST:-147.45.215.76}
-      - BITRIX_REMOTE_USER=${BITRIX_REMOTE_USER:-root}
-      - BITRIX_REMOTE_PASSWORD=${BITRIX_REMOTE_PASSWORD}
-      - BITRIX_REMOTE_PATH=${BITRIX_REMOTE_PATH:-/home/bitrix/www/upload/1c_catalog}
-      # Fourtochki API (needed for export commands)
-      - FOURTOCHKI_WSDL_URL=${FOURTOCHKI_WSDL_URL}
-      - FOURTOCHKI_BASE_URL=${FOURTOCHKI_BASE_URL}
-      - FOURTOCHKI_LOGIN=${FOURTOCHKI_LOGIN}
-      - FOURTOCHKI_PASSWORD=${FOURTOCHKI_PASSWORD}
-      # Severavto API (needed for export commands)
-      - SEVERAVTO_BASE_URL=${SEVERAVTO_BASE_URL}
-      - SEVERAVTO_API_KEY=${SEVERAVTO_API_KEY}
-    restart: unless-stopped
-
-  # Severavto scheduler (every 3 hours: tyres at :00, rims at :15)
-  severavto-scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile.severavto-scheduler
-    environment:
-      - APP_ENV=${APP_ENV:-production}
-      - LOG_LEVEL=${LOG_LEVEL:-info}
-      - DATABASE_DSN=${DATABASE_DSN}
-      - SEVERAVTO_BASE_URL=${SEVERAVTO_BASE_URL}
-      - SEVERAVTO_API_KEY=${SEVERAVTO_API_KEY}
-      - SEVERAVTO_TIMEOUT=${SEVERAVTO_TIMEOUT:-60s}
-      - EMAIL_ENABLED=${EMAIL_ENABLED:-true}
-      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST}
-      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT}
-      - EMAIL_USERNAME=${EMAIL_USERNAME}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - EMAIL_FROM=${EMAIL_FROM}
-      - EMAIL_NOTIFICATION_TO=${EMAIL_NOTIFICATION_TO}
-      - TZ=Europe/Moscow
-    restart: unless-stopped
