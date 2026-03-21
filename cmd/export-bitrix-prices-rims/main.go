@@ -97,12 +97,14 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 				AND MIN(isimport) = 0
 		)
 		SELECT
-			cae,
-			total_stock,
-			min_price,
-			has_fast_provider
-		FROM grouped_stock
-		ORDER BY cae
+			gs.cae,
+			n.name as product_name,
+			gs.total_stock,
+			gs.min_price,
+			gs.has_fast_provider
+		FROM grouped_stock gs
+		INNER JOIN nomenclature_rims n ON gs.cae = n.cae
+		ORDER BY gs.cae
 		%s
 	`, limitClause)
 
@@ -124,9 +126,9 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 	writer.Comma = ',' // Используем запятую как разделитель
 	defer writer.Flush()
 
-	// Заголовок (4 колонки)
+	// Заголовок (5 колонок)
 	header := []string{
-		"IE_XML_ID", "CP_QUANTITY", "CV_PRICE_1", "CV_CURRENCY_1",
+		"IE_XML_ID", "IE_NAME", "CP_QUANTITY", "CV_PRICE_1", "CV_CURRENCY_1",
 	}
 
 	if err := writer.Write(header); err != nil {
@@ -147,33 +149,37 @@ func exportPrices(ctx context.Context, pool *pgxpool.Pool, outputDir, filename s
 	for rows.Next() {
 		var (
 			cae                      string
+			productName              string
 			totalStock, hasFastProvider int
 			minPrice                 int
 		)
 
-		if err := rows.Scan(&cae, &totalStock, &minPrice, &hasFastProvider); err != nil {
+		if err := rows.Scan(&cae, &productName, &totalStock, &minPrice, &hasFastProvider); err != nil {
 			log.Fatal(err)
 		}
 
 		exportedCAEs = append(exportedCAEs, cae)
 
-		record := make([]string, 4)
+		record := make([]string, 5)
 
 		// 1. IE_XML_ID (CAE)
 		record[0] = cae
 
-		// 2. CP_QUANTITY - суммарный остаток
-		record[1] = fmt.Sprintf("%d", totalStock)
+		// 2. IE_NAME - название товара
+		record[1] = productName
 
-		// 3. CV_PRICE_1 - минимальная цена + 12%, округление вверх
+		// 3. CP_QUANTITY - суммарный остаток
+		record[2] = fmt.Sprintf("%d", totalStock)
+
+		// 4. CV_PRICE_1 - минимальная цена + 12%, округление вверх
 		priceRub := float64(minPrice)
 		priceWithMarkup := priceRub * 1.12
 		// Округление вверх до целого числа
 		priceRounded := int(math.Ceil(priceWithMarkup))
-		record[2] = fmt.Sprintf("%d", priceRounded)
+		record[3] = fmt.Sprintf("%d", priceRounded)
 
-		// 4. CV_CURRENCY_1 - валюта
-		record[3] = "RUB"
+		// 5. CV_CURRENCY_1 - валюта
+		record[4] = "RUB"
 
 		if err := writer.Write(record); err != nil {
 			log.Fatal(err)

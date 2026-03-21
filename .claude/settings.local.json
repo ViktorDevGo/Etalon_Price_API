@@ -197,7 +197,13 @@
       "Bash(docker build:*)",
       "Bash(docker stop:*)",
       "Bash(docker rm:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(/tmp/debug_rims_query.go:*)",
+      "Bash(/tmp/reset_for_test.go:*)",
+      "Bash(/tmp/reset_isimport.go:*)",
+      "Bash(/tmp/check_reset.go:*)",
+      "Bash(/tmp/check_join.go:*)",
+      "Bash(/tmp/reset_proper.go:*)"
     ]
   }
 }
