@@ -24,6 +24,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/api ./cmd/ap
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/nomenclature-scheduler ./cmd/nomenclature-scheduler
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-prices ./cmd/sync-prices
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/severavto-scheduler ./cmd/severavto-scheduler
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/sync-severavto-prices ./cmd/sync-severavto-prices
 
 # Build export binaries for prices-upload
 RUN go build -o /app/export-bitrix-prices-mrc ./cmd/export-bitrix-prices-mrc
@@ -86,13 +87,15 @@ SCRIPT
 
 RUN chmod +x /app/upload_prices.sh
 
-# Create crontab for one-time scheduled commands (v4 - 2026-03-20)
+# Create crontab for one-time scheduled commands (v5 - 2026-03-21)
 # - upload_prices.sh: daily at 05:00 MSK = 10:00 IRKT (upload price files to 1C-Bitrix)
-# - sync-prices: every 3 hours (sync prices from suppliers)
+# - sync-prices: every 3 hours (sync prices from Fourtochki)
+# - sync-severavto-prices: every 3 hours (sync prices from Severavto)
 RUN mkdir -p /etc/crontabs && \
-    echo "# Etalon Price API cron jobs v4" > /etc/crontabs/root && \
+    echo "# Etalon Price API cron jobs v5" > /etc/crontabs/root && \
     echo "0 5 * * * /app/upload_prices.sh >> /var/log/prices-upload.log 2>&1" >> /etc/crontabs/root && \
-    echo "0 */3 * * * /app/sync-prices -type=all >> /var/log/sync-prices.log 2>&1" >> /etc/crontabs/root
+    echo "0 */3 * * * /app/sync-prices -type=all >> /var/log/sync-prices.log 2>&1" >> /etc/crontabs/root && \
+    echo "0 */3 * * * /app/sync-severavto-prices >> /var/log/sync-severavto-prices.log 2>&1" >> /etc/crontabs/root
 
 # Create supervisord config (v3 - cache bust 2026-03-20)
 RUN cat > /etc/supervisord.conf <<'SUPERVISOR'
@@ -142,6 +145,7 @@ RUN mkdir -p /var/log && \
     touch /var/log/api.log \
           /var/log/nomenclature.log \
           /var/log/sync-prices.log \
+          /var/log/sync-severavto-prices.log \
           /var/log/severavto.log \
           /var/log/prices-upload.log \
           /var/log/cron.log

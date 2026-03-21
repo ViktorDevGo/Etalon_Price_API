@@ -22,7 +22,7 @@ func main() {
 
 	_ = godotenv.Load()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("DB_DSN"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_DSN"))
 	if err != nil {
 		log.Fatal(err)
 	}
